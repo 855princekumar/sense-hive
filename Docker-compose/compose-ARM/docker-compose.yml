@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  iot-dashboard:
+    image: devprincekumar/sense-hive:arm-pi5
+    container_name: sense-hive
+    ports:
+      - "5500:5000"
+    volumes:
+      - /volume1/docker/MQTT-Node-data-agrigator:/app/data
+    restart: unless-stopped
+    networks:
+      - sense-hive-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/status')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  sense-hive-network:
+    driver: bridge

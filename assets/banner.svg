@@ -1,0 +1,60 @@
+<svg width="1200" height="300" viewBox="0 0 1200 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#161b22"/>
+    </linearGradient>
+
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#58a6ff"/>
+      <stop offset="100%" stop-color="#3fb950"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="300" fill="url(#bgGradient)" />
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.05">
+    <path d="M0 50 H1200 M0 100 H1200 M0 150 H1200 M0 200 H1200 M0 250 H1200" stroke="#ffffff"/>
+    <path d="M100 0 V300 M200 0 V300 M300 0 V300 M400 0 V300 M500 0 V300 M600 0 V300 M700 0 V300 M800 0 V300 M900 0 V300 M1000 0 V300 M1100 0 V300" stroke="#ffffff"/>
+  </g>
+
+  <!-- Title -->
+  <text x="80" y="120" font-family="Segoe UI, Ubuntu, sans-serif" font-size="48" fill="#c9d1d9" font-weight="600">
+    SenseHive
+  </text>
+
+  <!-- Accent line -->
+  <rect x="80" y="135" width="220" height="4" fill="url(#accent)" rx="2"/>
+
+  <!-- Subtitle -->
+  <text x="80" y="180" font-family="Segoe UI, Ubuntu, sans-serif" font-size="20" fill="#8b949e">
+    Lightweight MQTT Data Logger and Real-Time Dashboard
+  </text>
+
+  <!-- Tagline -->
+  <text x="80" y="215" font-family="Segoe UI, Ubuntu, sans-serif" font-size="16" fill="#6e7681">
+    Self-hosted • Edge-ready • Plug-and-play IoT ingestion
+  </text>
+
+  <!-- Right-side visual (nodes + connections) -->
+  <g transform="translate(800,80)">
+    <circle cx="0" cy="50" r="6" fill="#58a6ff"/>
+    <circle cx="80" cy="0" r="6" fill="#3fb950"/>
+    <circle cx="160" cy="60" r="6" fill="#58a6ff"/>
+    <circle cx="240" cy="20" r="6" fill="#3fb950"/>
+    <circle cx="320" cy="80" r="6" fill="#58a6ff"/>
+
+    <line x1="0" y1="50" x2="80" y2="0" stroke="#8b949e" stroke-width="1"/>
+    <line x1="80" y1="0" x2="160" y2="60" stroke="#8b949e" stroke-width="1"/>
+    <line x1="160" y1="60" x2="240" y2="20" stroke="#8b949e" stroke-width="1"/>
+    <line x1="240" y1="20" x2="320" y2="80" stroke="#8b949e" stroke-width="1"/>
+  </g>
+
+  <!-- Footer tag -->
+  <text x="80" y="260" font-family="Segoe UI, Ubuntu, sans-serif" font-size="14" fill="#6e7681">
+    v1.0 • Open Source • MIT License
+  </text>
+
+</svg>
