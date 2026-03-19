@@ -1,4 +1,5 @@
 <svg width="1200" height="300" viewBox="0 0 1200 300" xmlns="http://www.w3.org/2000/svg">
+
   <defs>
     <linearGradient id="bgGradient" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0d1117"/>
@@ -9,52 +10,101 @@
       <stop offset="0%" stop-color="#58a6ff"/>
       <stop offset="100%" stop-color="#3fb950"/>
     </linearGradient>
+
+    <linearGradient id="flow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#58a6ff" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#58a6ff" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#58a6ff" stop-opacity="0"/>
+    </linearGradient>
   </defs>
 
   <!-- Background -->
   <rect width="1200" height="300" fill="url(#bgGradient)" />
 
-  <!-- Subtle grid pattern -->
+  <!-- Grid -->
   <g opacity="0.05">
     <path d="M0 50 H1200 M0 100 H1200 M0 150 H1200 M0 200 H1200 M0 250 H1200" stroke="#ffffff"/>
     <path d="M100 0 V300 M200 0 V300 M300 0 V300 M400 0 V300 M500 0 V300 M600 0 V300 M700 0 V300 M800 0 V300 M900 0 V300 M1000 0 V300 M1100 0 V300" stroke="#ffffff"/>
   </g>
 
-  <!-- Title -->
-  <text x="80" y="120" font-family="Segoe UI, Ubuntu, sans-serif" font-size="48" fill="#c9d1d9" font-weight="600">
+  <!-- LEFT CONTENT (UNCHANGED) -->
+  <text x="80" y="120" font-family="Segoe UI" font-size="48" fill="#c9d1d9" font-weight="600">
     SenseHive
   </text>
 
-  <!-- Accent line -->
   <rect x="80" y="135" width="220" height="4" fill="url(#accent)" rx="2"/>
 
-  <!-- Subtitle -->
-  <text x="80" y="180" font-family="Segoe UI, Ubuntu, sans-serif" font-size="20" fill="#8b949e">
+  <text x="80" y="180" font-family="Segoe UI" font-size="20" fill="#8b949e">
     Lightweight MQTT Data Logger and Real-Time Dashboard
   </text>
 
-  <!-- Tagline -->
-  <text x="80" y="215" font-family="Segoe UI, Ubuntu, sans-serif" font-size="16" fill="#6e7681">
+  <text x="80" y="215" font-family="Segoe UI" font-size="16" fill="#6e7681">
     Self-hosted • Edge-ready • Plug-and-play IoT ingestion
   </text>
 
-  <!-- Right-side visual (nodes + connections) -->
-  <g transform="translate(800,80)">
-    <circle cx="0" cy="50" r="6" fill="#58a6ff"/>
-    <circle cx="80" cy="0" r="6" fill="#3fb950"/>
-    <circle cx="160" cy="60" r="6" fill="#58a6ff"/>
-    <circle cx="240" cy="20" r="6" fill="#3fb950"/>
-    <circle cx="320" cy="80" r="6" fill="#58a6ff"/>
-
-    <line x1="0" y1="50" x2="80" y2="0" stroke="#8b949e" stroke-width="1"/>
-    <line x1="80" y1="0" x2="160" y2="60" stroke="#8b949e" stroke-width="1"/>
-    <line x1="160" y1="60" x2="240" y2="20" stroke="#8b949e" stroke-width="1"/>
-    <line x1="240" y1="20" x2="320" y2="80" stroke="#8b949e" stroke-width="1"/>
-  </g>
-
-  <!-- Footer tag -->
-  <text x="80" y="260" font-family="Segoe UI, Ubuntu, sans-serif" font-size="14" fill="#6e7681">
+  <text x="80" y="260" font-family="Segoe UI" font-size="14" fill="#6e7681">
     v1.0 • Open Source • MIT License
   </text>
+
+  <!-- RIGHT SIDE SYSTEM DIAGRAM -->
+  <g transform="translate(700,60)">
+
+    <!-- SENSOR NODE -->
+    <rect x="0" y="80" width="110" height="40" rx="8" fill="#1f2933" stroke="#58a6ff"/>
+    <text x="10" y="105" fill="#c9d1d9" font-size="12">Sensor Node</text>
+
+    <!-- DAQ -->
+    <rect x="140" y="20" width="100" height="40" rx="8" fill="#1f2933" stroke="#3fb950"/>
+    <text x="155" y="45" fill="#c9d1d9" font-size="12">DAQ Unit</text>
+
+    <!-- MQTT BROKER -->
+    <rect x="140" y="140" width="120" height="40" rx="8" fill="#1f2933" stroke="#58a6ff"/>
+    <text x="155" y="165" fill="#c9d1d9" font-size="12">MQTT Broker</text>
+
+    <!-- SERVER -->
+    <rect x="300" y="80" width="120" height="50" rx="10" fill="#1f2933" stroke="#3fb950"/>
+    <text x="315" y="110" fill="#c9d1d9" font-size="12">SenseHive</text>
+    <text x="315" y="125" fill="#8b949e" font-size="10">Server</text>
+
+    <!-- CONNECTION LINES -->
+    <g stroke="#8b949e" stroke-width="1.2">
+      <line x1="110" y1="100" x2="140" y2="40"/>
+      <line x1="110" y1="100" x2="140" y2="160"/>
+      <line x1="240" y1="40" x2="300" y2="100"/>
+      <line x1="260" y1="160" x2="300" y2="100"/>
+    </g>
+
+    <!-- DATA FLOW ANIMATION (PUB/SUB PACKETS) -->
+    <g fill="#58a6ff">
+
+      <!-- Sensor → DAQ -->
+      <circle r="3">
+        <animateMotion dur="3s" repeatCount="indefinite">
+          <mpath href="#path1"/>
+        </animateMotion>
+      </circle>
+
+      <!-- Sensor → MQTT -->
+      <circle r="3">
+        <animateMotion dur="3.5s" repeatCount="indefinite">
+          <mpath href="#path2"/>
+        </animateMotion>
+      </circle>
+
+      <!-- Broker → Server -->
+      <circle r="3" fill="#3fb950">
+        <animateMotion dur="2.5s" repeatCount="indefinite">
+          <mpath href="#path3"/>
+        </animateMotion>
+      </circle>
+
+    </g>
+
+    <!-- PATH DEFINITIONS -->
+    <path id="path1" d="M110 100 L140 40" fill="none"/>
+    <path id="path2" d="M110 100 L140 160" fill="none"/>
+    <path id="path3" d="M260 160 L300 100" fill="none"/>
+
+  </g>
 
 </svg>
