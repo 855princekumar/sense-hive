@@ -50,7 +50,7 @@ The system is optimized for **edge environments, internal infrastructure, and lo
 - Collecting telemetry from distributed IoT nodes
 - Rapid prototyping of MQTT-based systems
 - Internal dashboards for lab or field deployments
-- 
+  
 ---
 
 ## Why SenseHive Was Built
