@@ -3,8 +3,33 @@
 </p>
 
 ![Release](https://img.shields.io/badge/release-v1.0-blue.svg) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg)
+> Lightweight MQTT dashboard and logger - like uptime-kuma, but for IoT data.
+> Designed for quick, local-first IoT data visibility without heavy infrastructure.
 
 ---
+## Quick Start (30 seconds)
+
+Run SenseHive instantly:
+
+```bash
+docker run -d -p 5000:5000 devprincekumar/sense-hive:latest
+```
+Open your browser:
+```
+http://localhost:5000
+```
+Start publishing MQTT data (or use the included test script) to see live updates immediately.
+
+## Dashboard Preview
+
+<p align="center">
+  <img src="assets/login.png" width="45%" style="margin:5px;" />
+  <img src="assets/Main_Dashboard.png" width="45%" style="margin:5px;" />
+</p>
+
+<p align="center">
+  <img src="assets/test-script-output.png" width="45%" style="margin:5px;" />
+</p>
 
 ## Overview
 
@@ -19,6 +44,13 @@ It enables engineers and teams to:
 
 The system is optimized for **edge environments, internal infrastructure, and low-resource devices**, where traditional IoT platforms are unnecessarily complex or resource-intensive.
 
+## Example Use Cases
+
+- Monitoring environmental sensors (temperature, humidity, AQI)
+- Collecting telemetry from distributed IoT nodes
+- Rapid prototyping of MQTT-based systems
+- Internal dashboards for lab or field deployments
+- 
 ---
 
 ## Why SenseHive Was Built
@@ -110,7 +142,7 @@ sequenceDiagram
 ### Real-Time Dashboard
 
 * Live updates via Server-Sent Events
-* Displays latest 50 entries per topic
+* Displays the latest 50 entries per topic
 * Topic-based data visualization cards
 
 ### Data Export
@@ -224,6 +256,17 @@ Note:
 
 * Without volume mounting, data will not persist across container restarts
 
+## Configuration
+
+The default setup uses a public MQTT broker for quick testing.
+
+You can modify:
+- MQTT broker (local or remote)
+- Credentials
+- Timezone settings
+
+Configuration is currently handled within the application code and UI, with extended configurability planned in future releases.
+
 ---
 
 ## Test Setup (Quick Validation)
@@ -266,6 +309,21 @@ python test_script.py
 }
 ```
 
+## Performance Benchmarks
+
+Based on internal LAN testing with Docker deployment.
+Tested on: Raspberry Pi 5 (8GB) and x86 local system
+
+| Metric                | Value / Range              |
+|---------------------|---------------------------|
+| Ingestion Rate       | ~1k–3k msgs/min           |
+| Devices Supported    | ~20–50 devices            |
+| CPU Usage            | ~5–15% (Raspberry Pi 5)   |
+| Memory Usage         | ~80–150 MB                |
+| Dashboard Latency    | <1 second                 |
+
+> Note: Values are indicative and may vary depending on workload and hardware.
+
 ---
 
 ## Comparison with Existing Solutions
@@ -292,6 +350,24 @@ SenseHive is designed as:
 > A lightweight, plug-and-play MQTT data logger and dashboard for quick deployment and internal use.
 
 It is not intended to replace full-scale IoT platforms.
+
+---
+
+## When to Use SenseHive
+
+- You need quick MQTT data logging without heavy setup  
+- You are working with edge devices (ESP32, Raspberry Pi, DAQ systems)  
+- You want a self-hosted, lightweight dashboard  
+- You need fast prototyping or internal monitoring  
+
+---
+
+## When NOT to Use SenseHive
+
+- You need large-scale distributed IoT infrastructure  
+- You require multi-tenant SaaS architecture  
+- You need advanced analytics or big data pipelines  
+- You expect enterprise-grade scalability out of the box
 
 ---
 
@@ -372,3 +448,11 @@ It is particularly suited for:
 * Lightweight IoT infrastructures
 
 The focus remains on usability, portability, and practical engineering needs.
+
+---
+
+## Support & Feedback
+
+If you find this useful, consider starring the repository.
+
+Feedback, issues, and contributions are welcome to help improve the project.
