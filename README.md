@@ -3,8 +3,9 @@
 </p>
 
 ![Release](https://img.shields.io/badge/release-v1.0-blue.svg) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg)![Home Assistant](https://img.shields.io/badge/home--assistant-compatible-41BDF5.svg?logo=home-assistant&logoColor=white)
-> Lightweight MQTT dashboard and logger - like uptime-kuma, but for IoT data.
-> Designed for quick, local-first IoT data visibility without heavy infrastructure.
+
+> Debug, log, and visualize your MQTT data instantly.
+> Like uptime-kuma, but built for MQTT and IoT data.
 
 ---
 
@@ -308,7 +309,9 @@ services:
 networks:
   sense-hive-network:
     driver: bridge
-````
+```
+
+Access SenseHive at: http://localhost:5500  
 
 ---
 
@@ -339,6 +342,8 @@ networks:
   sense-hive-network:
     driver: bridge
 ```
+
+Access SenseHive at: http://localhost:5500  
 
 ---
 
