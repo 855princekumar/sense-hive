@@ -7,6 +7,40 @@
 > Designed for quick, local-first IoT data visibility without heavy infrastructure.
 
 ---
+
+## Index
+
+- [Quick Start (30 seconds)](#quick-start-30-seconds)
+- [Dashboard Preview](#dashboard-preview)
+- [Overview](#overview)
+- [Example Use Cases](#example-use-cases)
+- [Why SenseHive Was Built](#why-sensehive-was-built)
+- [Design Principles](#design-principles)
+- [System Architecture](#system-architecture)
+- [Data Flow](#data-flow)
+- [Key Features](#key-features)
+- [Folder Structure](#folder-structure)
+- [Deployment](#deployment)
+- [Home Assistant Integration](#home-assistant-integration)
+- [Default Access](#default-access)
+- [Data Persistence](#data-persistence)
+- [Configuration](#configuration)
+- [Test Setup (Quick Validation)](#test-setup-quick-validation)
+- [Example Payload](#example-payload)
+- [Performance Benchmarks](#performance-benchmarks)
+- [Comparison with Existing Solutions](#comparison-with-existing-solutions)
+- [Positioning](#positioning)
+- [When to Use SenseHive](#when-to-use-sensehive)
+- [When NOT to Use SenseHive](#when-not-to-use-sensehive)
+- [Current Limitations](#current-limitations)
+- [Versioning and Release Status](#versioning-and-release-status)
+- [Stability Statement](#stability-statement)
+- [Community Release](#community-release)
+- [License](#license)
+- [Closing Note](#closing-note)
+- [Support & Feedback](#support--feedback)
+
+---
 ## Quick Start (30 seconds)
 
 Run SenseHive instantly:
@@ -232,6 +266,108 @@ Access the dashboard:
 ```
 http://localhost:5000
 ```
+---
+
+## Home Assistant Integration
+
+SenseHive can be used alongside Home Assistant by connecting to the same MQTT broker (e.g., Mosquitto add-on).
+
+This setup is useful for:
+
+- Inspecting raw MQTT topics  
+- Logging data independently of Home Assistant  
+- Exporting MQTT data for analysis  
+
+---
+
+### Quick Setup (Docker Compose)
+
+#### Standard Systems (x86 / AMD64)
+
+```yaml
+version: "3.8"
+
+services:
+  sense-hive:
+    image: devprincekumar/sense-hive:latest
+    container_name: sense-hive
+    ports:
+      - "5500:5000"
+    volumes:
+      - ./sensehive-data:/app/data
+    restart: unless-stopped
+    networks:
+      - sense-hive-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/status')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  sense-hive-network:
+    driver: bridge
+````
+
+---
+
+#### Raspberry Pi (ARM)
+
+```yaml
+version: "3.8"
+
+services:
+  sense-hive:
+    image: devprincekumar/sense-hive:arm-pi5
+    container_name: sense-hive
+    ports:
+      - "5500:5000"
+    volumes:
+      - /config/sensehive:/app/data
+    restart: unless-stopped
+    networks:
+      - sense-hive-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/status')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  sense-hive-network:
+    driver: bridge
+```
+
+---
+
+### Notes for Home Assistant Users
+
+* Use the same MQTT broker configured in Home Assistant (typically Mosquitto)
+
+* Broker host is usually:
+
+  * `homeassistant.local`
+  * or the Home Assistant IP (e.g., `192.168.1.x`)
+
+* Default MQTT port: `1883`
+
+* Use the same credentials defined in Home Assistant
+
+---
+
+### Data Persistence
+
+* For standard Docker setups:
+
+  * `./sensehive-data:/app/data`
+
+* For Home Assistant environments:
+
+  * `/config/sensehive:/app/data`
+
+This ensures data persists across container restarts and aligns with Home Assistant storage conventions.
 
 ---
 
