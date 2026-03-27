@@ -4,8 +4,9 @@
 
 ![Release](https://img.shields.io/badge/release-v1.0-blue.svg) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg)![Home Assistant](https://img.shields.io/badge/home--assistant-compatible-41BDF5.svg?logo=home-assistant&logoColor=white)
 
-> Debug, log, and visualize your MQTT data instantly.
-> Like uptime-kuma, but built for MQTT and IoT data.
+> Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
+
+**Run → Add Topic → Publish → See Data in under 30 seconds.**
 
 ---
 
@@ -42,29 +43,127 @@
 - [Support & Feedback](#support--feedback)
 
 ---
+
 ## Quick Start (30 seconds)
 
-Run SenseHive instantly:
+Get SenseHive running and visualize MQTT data instantly.
+
+### 1. Run the Container
 
 ```bash
 docker run -d -p 5000:5000 devprincekumar/sense-hive:latest
 ```
-Open your browser:
+
+---
+
+### 2. Open the Dashboard
+
 ```
 http://localhost:5000
 ```
-Start publishing MQTT data (or use the included test script) to see live updates immediately.
 
+Login with default credentials and access the dashboard.
+
+---
+
+### 3. Add Any MQTT Topic
+
+* Click **“+ Add Node”**
+* Enter a topic (example):
+
+  ```
+  test/topic
+  ```
+* Save
+
+> Example Topics You Can Try
+- home/livingroom/temp
+- sensor/temperature
+- test/topic
+
+No setup required, just Subscribe and watch.
+
+---
+
+### 4. Publish Data (From Anywhere)
+
+Publish a message using any MQTT client:
+
+```bash
+mosquitto_pub -h broker.hivemq.com -t test/topic -m "hello world"
+```
+---
+
+### That’s It
+
+Your data will appear **instantly** on the dashboard, no scripts, no setup.
+
+> Run → Add Topic → Publish → See Data
+
+---
+
+### Try Other Public Brokers (Optional)
+
+You can switch brokers anytime:
+
+* `broker.hivemq.com` (default)
+* `test.mosquitto.org`
+* `broker.emqx.io`
+
+| Broker             | Host                 | Port | Notes                   |
+| ------------------ | -------------------- | ---- | ----------------------- |
+| Eclipse Mosquitto  | `test.mosquitto.org` | 1883 | Very popular, stable    |
+| EMQX Public Broker | `broker.emqx.io`     | 1883 | Good global performance |
+| HiveMQ EU          | `broker.hivemq.com`  | 1883 | Default used            |
+
+Example:
+
+```bash
+mosquitto_pub -h test.mosquitto.org -t test/topic -m "hello again"
+```
+---
+
+### Tip
+Use a unique topic if testing on public brokers:
+```
+yourname/test/topic1
+```
+You can also use the included test script for automated data simulation if needed.
+
+### Not Seeing Data?
+
+* Topic must match exactly
+* Use a unique topic (shared brokers)
+* Check host/port (1883)
+* Wait a few seconds
+
+---
 ## Dashboard Preview
 
 <p align="center">
-  <img src="assets/login.png" width="45%" style="margin:5px;" />
-  <img src="assets/Main_Dashboard.png" width="45%" style="margin:5px;" />
+  <img src="assets/login.png" width="60%" style="margin:5px;" />
+  <img src="assets/Main_Dashboard.png" width="60%" style="margin:5px;" />
 </p>
-
 <p align="center">
+  <img src="assets/settings.png" width="60%" style="margin:5px;" />
+</p>
+<p align="center">
+  <img src="assets/test-topic.png" width="45%" style="margin:5px;" />
   <img src="assets/test-script-output.png" width="45%" style="margin:5px;" />
 </p>
+
+---
+
+## Key Features
+
+| Category                   | Highlights                                                                         |
+| -------------------------- | ---------------------------------------------------------------------------------- |
+| **MQTT Data Ingestion**    | Compatible with any MQTT device · Public broker support · Topic-based subscription |
+| **Dynamic Data Storage**   | Auto topic-to-table mapping · SQLite persistence · Timestamped entries             |
+| **Real-Time Dashboard**    | Live updates (SSE) · Latest 50 entries per topic · Topic-based visualization cards |
+| **Data Export**            | CSV export per topic · Easy data extraction                                        |
+| **Deployment Flexibility** | Docker one-click run · AMD64 & ARM support · Runs without Docker                   |
+---
 
 ## Overview
 
@@ -157,47 +256,13 @@ sequenceDiagram
     SenseHive->>UI: Stream Updates (SSE)
     UI->>User: Display Latest Data
 ```
-
----
-
-## Key Features
-
-### MQTT Data Ingestion
-
-* Compatible with any MQTT-compliant device
-* Default public broker for quick testing
-* Topic-based subscription
-
-### Dynamic Data Storage
-
-* Automatic topic-to-table mapping
-* SQLite-based persistent storage
-* Timestamped entries
-
-### Real-Time Dashboard
-
-* Live updates via Server-Sent Events
-* Displays the latest 50 entries per topic
-* Topic-based data visualization cards
-
-### Data Export
-
-* CSV export per topic
-* Easy data extraction for analysis
-
-### Deployment Flexibility
-
-* Docker-based one-click deployment
-* Multi-architecture support (AMD64 and ARM)
-* Local execution without Docker
-
 ---
 
 ## Folder Structure
 
 ```
 .
-├── version-1.1/
+├── version-1.0/
 │   ├── app.py
 │   ├── Dockerfile
 │   └── application files
@@ -258,7 +323,7 @@ Use the provided compose files:
 ### Option 3: Local Run (Without Docker)
 
 ```bash
-cd version-1.1
+cd version-1.0
 python app.py
 ```
 
@@ -322,7 +387,7 @@ version: "3.8"
 
 services:
   sense-hive:
-    image: devprincekumar/sense-hive:arm-pi5
+    image: devprincekumar/sense-hive:arm-pi-5
     container_name: sense-hive
     ports:
       - "5500:5000"
