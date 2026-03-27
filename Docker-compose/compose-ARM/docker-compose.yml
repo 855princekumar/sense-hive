@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   iot-dashboard:
-    image: devprincekumar/sense-hive:arm-pi5
+    image: devprincekumar/sense-hive:arm-pi-5
     container_name: sense-hive
     ports:
       - "5500:5000"
