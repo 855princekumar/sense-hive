@@ -14,13 +14,13 @@
 
 - [Quick Start (30 seconds)](#quick-start-30-seconds)
 - [Dashboard Preview](#dashboard-preview)
+- [Key Features](#key-features)
 - [Overview](#overview)
 - [Example Use Cases](#example-use-cases)
 - [Why SenseHive Was Built](#why-sensehive-was-built)
 - [Design Principles](#design-principles)
 - [System Architecture](#system-architecture)
 - [Data Flow](#data-flow)
-- [Key Features](#key-features)
 - [Folder Structure](#folder-structure)
 - [Deployment](#deployment)
 - [Home Assistant Integration](#home-assistant-integration)
@@ -92,11 +92,8 @@ Publish a message using any MQTT client:
 ```bash
 mosquitto_pub -h broker.hivemq.com -t test/topic -m "hello world"
 ```
----
 
-### That’s It
-
-Your data will appear **instantly** on the dashboard, no scripts, no setup.
+That’s it, your data will appear **instantly** on the dashboard, no scripts, no setup.
 
 > Run → Add Topic → Publish → See Data
 
