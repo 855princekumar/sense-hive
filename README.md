@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="SenseHive Banner"/>
 </p>
 
-![Release](https://img.shields.io/badge/release-v1.0-blue.svg) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg)![Home Assistant](https://img.shields.io/badge/home--assistant-compatible-41BDF5.svg?logo=home-assistant&logoColor=white)
+![Release](https://img.shields.io/badge/release-v1.1.0-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white)
 
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
@@ -31,6 +31,7 @@
 - [Quick Start (30 seconds)](#quick-start-30-seconds)
 - [Dashboard Preview](#dashboard-preview)
 - [Key Features](#key-features)
+- [What's New in v1.1](#whats-new-in-v11)
 - [Overview](#overview)
 - [Example Use Cases](#example-use-cases)
 - [Why SenseHive Was Built](#why-sensehive-was-built)
@@ -39,12 +40,13 @@
 - [Data Flow](#data-flow)
 - [Folder Structure](#folder-structure)
 - [Deployment](#deployment)
-- [Home Assistant Integration](#home-assistant-integration)
+- [Home Assistant Add-on (HAOS)](#home-assistant-add-on-haos)
 - [Default Access](#default-access)
 - [Data Persistence](#data-persistence)
 - [Configuration](#configuration)
 - [Test Setup (Quick Validation)](#test-setup-quick-validation)
 - [Example Payload](#example-payload)
+- [Testing and CI/CD](#testing-and-cicd)
 - [Performance Benchmarks](#performance-benchmarks)
 - [Comparison with Existing Solutions](#comparison-with-existing-solutions)
 - [Positioning](#positioning)
@@ -67,8 +69,10 @@ Get SenseHive running and visualize MQTT data instantly.
 ### 1. Run the Container
 
 ```bash
-docker run -d -p 5000:5000 devprincekumar/sense-hive:latest
+docker run -d -p 5000:5000 -v $(pwd)/sensehive-data:/app/data devprincekumar/sense-hive:latest
 ```
+
+Prefer no Docker? `pip install sensehive-iot && sensehive`. On Home Assistant OS? Install the [add-on](#home-assistant-add-on-haos).
 
 ---
 
@@ -175,7 +179,27 @@ You can also use the included test script for automated data simulation if neede
 | **Dynamic Data Storage**   | Auto topic-to-table mapping · SQLite persistence · Timestamped entries             |
 | **Real-Time Dashboard**    | Live updates (SSE) · Latest 50 entries per topic · Topic-based visualization cards |
 | **Data Export**            | CSV export per topic · Easy data extraction                                        |
-| **Deployment Flexibility** | Docker one-click run · AMD64 & ARM support · Runs without Docker                   |
+| **Organization**           | Tags · Node ID grouping · Filter by tag · Sort by name, status, entries or size    |
+| **Device Health (LWT)**    | Online/offline per topic and per node · Live counts in the navbar                  |
+| **Data Management**        | Entry count & size per topic · Retention by age/entries · SQLite WAL mode          |
+| **Wildcard Topics**        | `sensors/#` and `home/+/temp` subscriptions are logged                             |
+| **Deployment Flexibility** | Docker (multi-arch amd64 + arm64) · Home Assistant add-on · `pip install` CLI      |
+---
+
+## What's New in v1.1
+
+| Area | Change | Issue |
+| ---- | ------ | ----- |
+| UI | JSON arrays, nested objects and long values wrap inside the cards (Chrome and Firefox) | [#3](https://github.com/855princekumar/sense-hive/issues/3) |
+| Performance | SQLite WAL mode; data retention by age and/or max entries per topic | [#1](https://github.com/855princekumar/sense-hive/issues/1) |
+| Dashboard | Entry count and size per topic, mandatory tags and Node ID, filter/sort/group, LWT online/offline status with navbar counts | [#5](https://github.com/855princekumar/sense-hive/issues/5) |
+| Install | `pip install sensehive-iot` with a `sensehive` CLI | [#4](https://github.com/855princekumar/sense-hive/issues/4) |
+| Home Assistant | One-click HAOS add-on with ingress, Mosquitto auto-discovery and backups | [#2](https://github.com/855princekumar/sense-hive/issues/2) |
+| Reliability | Wildcard topics logged, live updates reach every open tab, paho-mqtt 2.x support, no dev data in the image, persistent session secret | |
+| Quality | 73-test regression suite, CI on every PR, automated multi-arch image publishing | |
+
+Existing v1.0 databases are migrated automatically on first start. Keep your `/app/data` volume.
+
 ---
 
 ## Overview
@@ -275,21 +299,24 @@ sequenceDiagram
 
 ```
 .
-├── version-1.0/
-│   ├── app.py
-│   ├── Dockerfile
-│   └── application files
-│
-├── docker-compose/
-│   ├── docker-compose-amd.yml
-│   └── docker-compose-arm.yml
-│
-├── test-sensehive/
-│   └── test publisher script
-│
+├── version-1.0/              # application (also the `sensehive` pip package)
+│   ├── app.py                # Flask app + MQTT logger
+│   ├── cli.py                # `sensehive` command
+│   ├── templates/            # dashboard + login page
+│   ├── requirements.txt
+│   └── Dockerfile
+├── tests/                    # regression suite (pytest) + legacy DB fixture
+├── .github/workflows/        # CI (every PR) and CD (Docker Hub, PyPI, releases)
+├── Docker-compose/           # compose files for x86 and ARM
+├── Test-sensehive/           # test publisher script
+├── pyproject.toml            # pip packaging (sensehive-iot)
+├── DOCKERHUB.md              # Docker Hub description (synced by CD)
 ├── README.md
 └── LICENSE
 ```
+
+The Home Assistant add-on lives in its own repository:
+[855princekumar/sensehive-ha-addon](https://github.com/855princekumar/sensehive-ha-addon).
 
 ---
 
@@ -303,13 +330,9 @@ sequenceDiagram
 docker pull devprincekumar/sense-hive:latest
 ```
 
-* For AMD64 / x86 systems
-
-```bash
-docker pull devprincekumar/sense-hive:arm-pi-5
-```
-
-* For ARM systems (Raspberry Pi 5 optimized)
+* One multi-arch image for AMD64 / x86 and ARM64 (Raspberry Pi 4/5); Docker picks the right one
+* Pin a release with `devprincekumar/sense-hive:1.1.0`; `edge` tracks the `main` branch
+* `arm-pi-5` remains available and points to the same multi-arch release
 
 ---
 
@@ -345,11 +368,68 @@ Access the dashboard:
 ```
 http://localhost:5000
 ```
+
 ---
 
-## Home Assistant Integration
+### Option 4: pip install (CLI)
 
-SenseHive can be used alongside Home Assistant by connecting to the same MQTT broker (e.g., Mosquitto add-on).
+```bash
+pip install sensehive-iot
+sensehive --port 5000
+```
+
+Options:
+
+```bash
+sensehive --host 0.0.0.0 --port 5000 --broker broker.hivemq.com
+sensehive --broker 192.168.1.10 --broker-port 1883 --broker-username user --broker-password pass
+sensehive --timezone Asia/Kolkata --data-dir ~/sensehive-data
+sensehive --version
+```
+
+Data is stored in `~/.sensehive` unless `--data-dir` (or `DB_PATH`) is set. `--broker` overrides
+the broker saved in Settings. Install straight from GitHub with
+`pip install git+https://github.com/855princekumar/sense-hive`.
+
+---
+
+## Home Assistant Add-on (HAOS)
+
+One-click deployment for Home Assistant OS / Supervised users.
+
+[![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2F855princekumar%2Fsensehive-ha-addon)
+
+1. **Settings → Add-ons → Add-on Store → ⋮ → Repositories**, add `https://github.com/855princekumar/sensehive-ha-addon`
+2. Install **SenseHive**, press **Start**, enable **Show in sidebar**
+3. Open **SenseHive** from the sidebar, add a topic and publish
+
+| Feature | Details |
+| ------- | ------- |
+| Ingress | Opens in the Home Assistant sidebar; Home Assistant handles authentication |
+| Zero MQTT setup | Connects to the Mosquitto broker add-on automatically (or set a broker in Configuration) |
+| Backups | Database stored in the add-on `/data` folder, included in Home Assistant backups |
+| Security | AppArmor profile, no privileges, direct port access disabled by default |
+| Architectures | amd64 and aarch64 (Raspberry Pi 4/5) |
+
+**Build, test and validation**
+
+| Check | Result |
+| ----- | ------ |
+| Home Assistant app linter (official schema) | Passed |
+| AppArmor profile parse (`apparmor_parser`) | Passed |
+| Multi-arch image build (amd64 + aarch64) | Passed, published as `devprincekumar/sense-hive:1.1.0` |
+| Sandbox: mock Supervisor at 172.30.32.2 + Mosquitto with credentials + ingress proxy | 26/26 checks passed |
+| Real Home Assistant: official apps devcontainer, Home Assistant 2026.10.1 + Supervisor 2026.10.2 (store install, Mosquitto discovery, ingress via Core, data flow, LWT, restart, backup) | 21/21 checks passed |
+| Supervisor security rating | 8/8 (AppArmor profile, no API or host access, protected mode) |
+
+The add-on repository runs the linter, AppArmor, build and sandbox checks on every change,
+and a daily sync workflow opens a PR when a new SenseHive release is published.
+
+---
+
+### Alternative: Docker next to Home Assistant
+
+SenseHive can also run as a plain container next to Home Assistant, connected to the same MQTT broker (e.g., Mosquitto add-on).
 
 This setup is useful for:
 
@@ -471,9 +551,16 @@ Database location:
 /app/data/iot_dashboard.db
 ```
 
+| Install | Database location |
+| ------- | ----------------- |
+| Docker | `/app/data/iot_dashboard.db` (mount a volume) |
+| Home Assistant add-on | `/data/iot_dashboard.db` (included in backups) |
+| pip | `~/.sensehive/iot_dashboard.db` (or `--data-dir`) |
+
 Note:
 
 * Without volume mounting, data will not persist across container restarts
+* SQLite runs in WAL mode; `-wal`/`-shm` files next to the database are normal
 
 ## Configuration
 
@@ -484,7 +571,21 @@ You can modify:
 - Credentials
 - Timezone settings
 
-Configuration is currently handled within the application code and UI, with extended configurability planned in future releases.
+Most settings live in the UI (**Settings**): broker, credentials, timezone, data retention and password.
+Environment variables set the defaults for a new database:
+
+| Variable | Default | Purpose |
+| -------- | ------- | ------- |
+| `DEFAULT_BROKER_HOST` / `DEFAULT_BROKER_PORT` | `broker.hivemq.com` / `1883` | Broker for a new database |
+| `DEFAULT_BROKER_USERNAME` / `DEFAULT_BROKER_PASSWORD` | empty | Broker credentials |
+| `SENSEHIVE_FORCE_BROKER` | `false` | `true` applies `DEFAULT_BROKER_*` on every start |
+| `DEFAULT_TIMEZONE` | `UTC` | Timezone for a new database |
+| `RETENTION_DAYS` / `RETENTION_MAX_ENTRIES` | `0` (off) | Initial retention policy |
+| `RETENTION_INTERVAL` | `3600` | Seconds between retention runs |
+| `SQLITE_WAL` | `true` | Set `false` on network filesystems (NFS/SMB) |
+| `SECRET_KEY` | random, persisted next to the DB | Session secret |
+| `DB_PATH` | `/app/data/iot_dashboard.db` | Database location |
+| `HOST` / `PORT` | `0.0.0.0` / `5000` | Listen address for `python app.py` |
 
 ---
 
@@ -527,6 +628,26 @@ python test_script.py
   "status": "active"
 }
 ```
+
+---
+
+## Testing and CI/CD
+
+Run the regression suite locally:
+
+```bash
+pip install -r version-1.0/requirements.txt pytest
+python -m pytest                                        # unit + API tests
+SENSEHIVE_TEST_BROKER=localhost:1883 python -m pytest   # plus end-to-end against a real broker
+```
+
+| Pipeline | Trigger | What runs |
+| -------- | ------- | --------- |
+| CI | Every pull request and push to `main` | 73 tests on Python 3.9 to 3.13 against a real Mosquitto broker, paho-mqtt 1.x compatibility, wheel build + CLI smoke test, Docker build + container health check |
+| CD | Push to `main` | Full CI, then publishes `devprincekumar/sense-hive:edge` (amd64 + arm64) |
+| CD | Tag `vX.Y.Z` | Full CI, then publishes `X.Y.Z`, `X.Y`, `latest`, `arm-pi-5`, updates the Docker Hub description, publishes `sensehive-iot` to PyPI and creates a GitHub release |
+
+---
 
 ## Performance Benchmarks
 
@@ -593,8 +714,6 @@ It is not intended to replace full-scale IoT platforms.
 ## Current Limitations
 
 * SQLite may not scale for high-throughput systems
-* No data retention policy (planned)
-* WAL mode not yet enabled
 * Table-per-topic schema limits scalability
 * No dynamic schema optimization
 * No built-in migration to time-series databases
@@ -605,7 +724,19 @@ It is not intended to replace full-scale IoT platforms.
 
 ## Versioning and Release Status
 
-### v1.0 (Current)
+### v1.1 (Current)
+
+* SQLite WAL mode and data retention
+* Topic stats, tags, node grouping and LWT device status
+* JSON payload wrapping fix, wildcard topic logging, multi-tab live updates
+* pip package with CLI, Home Assistant add-on with ingress
+* Regression suite and CI/CD; multi-arch Docker image
+
+See [What's New in v1.1](#whats-new-in-v11).
+
+---
+
+### v1.0
 
 * Stable and tested
 * Running in internal LAN environments
@@ -614,13 +745,11 @@ It is not intended to replace full-scale IoT platforms.
 
 ---
 
-### v1.1 (Upcoming)
+### Planned
 
-Planned improvements:
-
-* WAL mode for improved database performance
-* Data retention policies
-* Improved write efficiency
+* Alerts and notifications
+* Advanced filters and tag analytics
+* Node-level analytics
 * Schema optimization groundwork
 
 ---
