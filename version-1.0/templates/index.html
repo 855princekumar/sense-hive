@@ -155,7 +155,7 @@
                     eventSourceRef.current.close();
                 }
 
-                const evtSource = new EventSource('/stream');
+                const evtSource = new EventSource('stream');
                 
                 evtSource.onmessage = (event) => {
                     try {
@@ -202,7 +202,7 @@
 
             const fetchStats = async () => {
                 try {
-                    const res = await fetch('/api/stats');
+                    const res = await fetch('api/stats');
                     if (res.ok) {
                         setStats(await res.json());
                     }
@@ -256,9 +256,9 @@
 
             const fetchNodes = async () => {
                 try {
-                    const res = await fetch('/api/nodes');
+                    const res = await fetch('api/nodes');
                     if (res.status === 401) {
-                        window.location.href = '/login';
+                        window.location.href = 'login';
                         return;
                     }
                     const data = await res.json();
@@ -271,9 +271,9 @@
 
             const fetchBrokerConfig = async () => {
                 try {
-                    const res = await fetch('/api/broker');
+                    const res = await fetch('api/broker');
                     if (res.status === 401) {
-                        window.location.href = '/login';
+                        window.location.href = 'login';
                         return;
                     }
                     const data = await res.json();
@@ -287,9 +287,9 @@
 
             const fetchTimezones = async () => {
                 try {
-                    const res = await fetch('/api/timezones');
+                    const res = await fetch('api/timezones');
                     if (res.status === 401) {
-                        window.location.href = '/login';
+                        window.location.href = 'login';
                         return;
                     }
                     const data = await res.json();
@@ -301,7 +301,7 @@
 
             const fetchRetention = async () => {
                 try {
-                    const res = await fetch('/api/settings/retention');
+                    const res = await fetch('api/settings/retention');
                     if (res.ok) {
                         setRetention(await res.json());
                     }
@@ -314,7 +314,7 @@
                 if (!window.confirm('Apply the retention policy now? Old entries will be permanently deleted.')) return;
                 try {
                     await saveRetention();
-                    const res = await fetch('/api/retention/run', { method: 'POST' });
+                    const res = await fetch('api/retention/run', { method: 'POST' });
                     const data = await res.json();
                     alert(`Cleanup complete: ${data.deleted || 0} entries removed`);
                     fetchNodes();
@@ -324,7 +324,7 @@
             };
 
             const saveRetention = async () => {
-                const res = await fetch('/api/settings/retention', {
+                const res = await fetch('api/settings/retention', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(retention)
@@ -335,9 +335,9 @@
 
             const checkBrokerStatus = async () => {
                 try {
-                    const res = await fetch('/api/status');
+                    const res = await fetch('api/status');
                     if (res.status === 401) {
-                        window.location.href = '/login';
+                        window.location.href = 'login';
                         return;
                     }
                     const data = await res.json();
@@ -350,8 +350,8 @@
             const handleLogout = async () => {
                 if (window.confirm('Are you sure you want to logout?')) {
                     try {
-                        await fetch('/api/logout', { method: 'POST' });
-                        window.location.href = '/login';
+                        await fetch('api/logout', { method: 'POST' });
+                        window.location.href = 'login';
                     } catch (e) {
                         console.error('Logout failed:', e);
                     }
@@ -391,7 +391,7 @@
                 if (!nodeForm.tag.trim()) return setFormError('Tag is required');
 
                 try {
-                    const res = await fetch(editingNodeId ? `/api/nodes/${editingNodeId}` : '/api/nodes', {
+                    const res = await fetch(editingNodeId ? `api/nodes/${editingNodeId}` : 'api/nodes', {
                         method: editingNodeId ? 'PUT' : 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(nodeForm)
@@ -426,7 +426,7 @@
                 
                 if (confirmDelete) {
                     try {
-                        await fetch(`/api/nodes/${nodeId}`, { method: 'DELETE' });
+                        await fetch(`api/nodes/${nodeId}`, { method: 'DELETE' });
                         fetchNodes();
                     } catch (e) {
                         console.error('Failed to delete node:', e);
@@ -436,7 +436,7 @@
 
             const exportData = async (nodeId, topic) => {
                 try {
-                    const res = await fetch(`/api/nodes/${nodeId}/export`);
+                    const res = await fetch(`api/nodes/${nodeId}/export`);
                     const blob = await res.blob();
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -452,7 +452,7 @@
             const saveBrokerConfig = async () => {
                 try {
                     await saveRetention();
-                    const res = await fetch('/api/broker', {
+                    const res = await fetch('api/broker', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(brokerConfig)
@@ -471,7 +471,7 @@
 
             const testBroker = async () => {
                 try {
-                    const res = await fetch('/api/broker/test', {
+                    const res = await fetch('api/broker/test', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(brokerConfig)
@@ -496,7 +496,7 @@
                 }
 
                 try {
-                    const res = await fetch('/api/change-password', {
+                    const res = await fetch('api/change-password', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -521,7 +521,7 @@
 
             const showNodeDetails = async (nodeId) => {
                 try {
-                    const res = await fetch(`/api/nodes/${nodeId}/history`);
+                    const res = await fetch(`api/nodes/${nodeId}/history`);
                     const data = await res.json();
                     setShowDetails(data);
                 } catch (e) {

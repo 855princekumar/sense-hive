@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, Response, session, redirect, url_for, send_from_directory
+from flask import Flask, jsonify, request, Response, session, redirect, send_from_directory
 import sqlite3
 import json
 import paho.mqtt.client as mqtt
@@ -22,6 +22,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
 
 app = Flask(__name__)
+# Own cookie name so it never clashes with other apps on the same host (e.g. Home Assistant ingress)
+app.config['SESSION_COOKIE_NAME'] = 'sensehive_session'
 
 # Database path - check environment variable or use default
 DB_PATH = os.getenv('DB_PATH', '/app/data/iot_dashboard.db')
@@ -43,6 +45,10 @@ def env_int(name, default=0):
 
 # SQLite WAL mode (disable with SQLITE_WAL=false, e.g. on network filesystems)
 SQLITE_WAL = env_flag('SQLITE_WAL', True)
+
+# Home Assistant ingress: requests from this proxy address are already authenticated by
+# Home Assistant, so they skip the SenseHive login (set by the add-on to 172.30.32.2)
+INGRESS_PROXY = os.getenv('SENSEHIVE_INGRESS_PROXY', '').strip()
 
 # How often the retention job runs (seconds)
 RETENTION_INTERVAL = max(env_int('RETENTION_INTERVAL', 3600), 60)
@@ -563,6 +569,15 @@ def mqtt_watchdog():
             except Exception:
                 pass
 
+@app.before_request
+def ingress_auto_login():
+    if INGRESS_PROXY and request.remote_addr == INGRESS_PROXY and 'logged_in' not in session:
+        with get_db() as conn:
+            user = conn.execute('SELECT username FROM users ORDER BY id LIMIT 1').fetchone()
+        if user:
+            session['logged_in'] = True
+            session['username'] = user['username']
+
 # ============================================================================
 # PUBLIC ENDPOINTS - NO LOGIN REQUIRED (for health checks and monitoring)
 # ============================================================================
@@ -591,7 +606,7 @@ def status():
 def index():
     """Main dashboard - REQUIRES LOGIN"""
     if 'logged_in' not in session:
-        return redirect(url_for('login_page'))
+        return redirect('login')
     return send_from_directory(TEMPLATE_DIR, 'index.html')
 
 
