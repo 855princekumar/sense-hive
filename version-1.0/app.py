@@ -308,6 +308,10 @@ def init_db():
                     c.execute('UPDATE broker_config SET timezone=? WHERE id=1', (default_timezone,))
                 print(f"✅ Broker set from environment: {default_host}:{default_port}")
 
+        # SENSEHIVE_TIMEZONE (CLI --timezone) always overrides the stored timezone
+        if os.getenv('SENSEHIVE_TIMEZONE'):
+            c.execute('UPDATE broker_config SET timezone=? WHERE id=1', (os.getenv('SENSEHIVE_TIMEZONE'),))
+
         # Retention defaults (0 = disabled); env values seed a fresh database
         for key, env_name in (('retention_days', 'RETENTION_DAYS'), ('retention_max_entries', 'RETENTION_MAX_ENTRIES')):
             c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',

@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sensehive-iot"
+version = "1.1.0"
+description = "Lightweight MQTT data logger and dashboard: Run -> Add Topic -> Publish -> See Data"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [{ name = "Prince kumar" }]
+keywords = ["mqtt", "iot", "dashboard", "logger", "sqlite", "home-assistant"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Web Environment",
+    "Framework :: Flask",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Home Automation",
+    "Topic :: System :: Monitoring",
+]
+dependencies = [
+    "Flask>=2.3,<4",
+    "paho-mqtt>=1.6,<3",
+    "pytz",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/855princekumar/sense-hive"
+Issues = "https://github.com/855princekumar/sense-hive/issues"
+"Docker Hub" = "https://hub.docker.com/r/devprincekumar/sense-hive"
+
+[project.scripts]
+sensehive = "sensehive.cli:main"
+
+[tool.setuptools]
+packages = ["sensehive"]
+package-dir = { "sensehive" = "version-1.0" }
+include-package-data = false
+
+[tool.setuptools.package-data]
+sensehive = ["templates/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: needs a real MQTT broker (set SENSEHIVE_TEST_BROKER=host:port)"]
