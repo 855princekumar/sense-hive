@@ -1,5 +1,7 @@
 FROM python:3.11-slim
 
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
 # Install dependencies
@@ -10,8 +12,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 COPY templates/ templates/
 
-# Copy data directory for database
-COPY data/ data/ 
+# Data directory for the database (mount a volume here to persist data)
+RUN mkdir -p /app/data
+VOLUME ["/app/data"]
 
 # Expose port
 EXPOSE 5000

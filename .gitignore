@@ -1,0 +1,13 @@
+# Runtime data
+version-1.0/data/*
+!version-1.0/data/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+build/
+dist/
+*.egg-info/

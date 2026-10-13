@@ -111,6 +111,10 @@
                 password: '',
                 timezone: 'UTC'
             });
+            const [retention, setRetention] = useState({
+                retention_days: 0,
+                retention_max_entries: 0
+            });
             const [passwordData, setPasswordData] = useState({
                 current: '',
                 new: '',
@@ -123,6 +127,7 @@
                 fetchNodes();
                 fetchBrokerConfig();
                 fetchTimezones();
+                fetchRetention();
                 checkBrokerStatus();
                 
                 const statusInterval = setInterval(checkBrokerStatus, 5000);
@@ -213,6 +218,40 @@
                 }
             };
 
+            const fetchRetention = async () => {
+                try {
+                    const res = await fetch('/api/settings/retention');
+                    if (res.ok) {
+                        setRetention(await res.json());
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch retention settings:', e);
+                }
+            };
+
+            const runRetentionNow = async () => {
+                if (!window.confirm('Apply the retention policy now? Old entries will be permanently deleted.')) return;
+                try {
+                    await saveRetention();
+                    const res = await fetch('/api/retention/run', { method: 'POST' });
+                    const data = await res.json();
+                    alert(`Cleanup complete: ${data.deleted || 0} entries removed`);
+                    fetchNodes();
+                } catch (e) {
+                    alert('Cleanup failed');
+                }
+            };
+
+            const saveRetention = async () => {
+                const res = await fetch('/api/settings/retention', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(retention)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Invalid retention settings');
+            };
+
             const checkBrokerStatus = async () => {
                 try {
                     const res = await fetch('/api/status');
@@ -298,6 +337,7 @@
 
             const saveBrokerConfig = async () => {
                 try {
+                    await saveRetention();
                     const res = await fetch('/api/broker', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -310,8 +350,8 @@
                         setTimeout(checkBrokerStatus, 1000);
                     }
                 } catch (e) {
-                    console.error('Failed to save broker config:', e);
-                    alert('Failed to save settings');
+                    console.error('Failed to save settings:', e);
+                    alert(`Failed to save settings${e.message ? ': ' + e.message : ''}`);
                 }
             };
 
@@ -638,6 +678,42 @@
 
                                     <div>
                                         <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                                            <Icons.Trash2 className="w-5 h-5" />
+                                            Data Retention
+                                        </h3>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <label className="text-xs text-gray-500">
+                                                Keep days
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={retention.retention_days}
+                                                    onChange={(e) => setRetention({...retention, retention_days: Math.max(0, parseInt(e.target.value) || 0)})}
+                                                    className={`w-full mt-1 px-4 py-2 rounded-lg border ${borderClass} ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}
+                                                />
+                                            </label>
+                                            <label className="text-xs text-gray-500">
+                                                Max entries / topic
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={retention.retention_max_entries}
+                                                    onChange={(e) => setRetention({...retention, retention_max_entries: Math.max(0, parseInt(e.target.value) || 0)})}
+                                                    className={`w-full mt-1 px-4 py-2 rounded-lg border ${borderClass} ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}
+                                                />
+                                            </label>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-1">0 = keep forever. Cleanup runs automatically every hour.</p>
+                                        <button
+                                            onClick={runRetentionNow}
+                                            className={`w-full mt-3 px-4 py-2 rounded-lg ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} transition text-sm`}
+                                        >
+                                            Run Cleanup Now
+                                        </button>
+                                    </div>
+
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                                             <Icons.Key className="w-5 h-5" />
                                             Account
                                         </h3>
@@ -755,4 +831,4 @@
         ReactDOM.render(<IoTDashboard />, document.getElementById('root'));
     </script>
 </body>
-</html>
+</html>
