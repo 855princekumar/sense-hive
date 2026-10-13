@@ -8,6 +8,17 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Payload rendering: keep long values, arrays and nested JSON inside the card (Chrome + Firefox) */
+        .payload-box { min-width: 0; overflow: hidden; }
+        .payload-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; min-width: 0; }
+        .payload-key { flex-shrink: 0; max-width: 40%; overflow-wrap: anywhere; }
+        .payload-value { flex: 1 1 auto; min-width: 0; text-align: right; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+        .payload-json {
+            margin: 0; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
+            max-height: 16rem; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem;
+        }
+    </style>
 </head>
 <body>
     <div id="root"></div>
@@ -364,16 +375,27 @@
                 }
             };
 
+            const isNested = (v) => typeof v === 'object' && v !== null;
+
             const formatValue = (value) => {
-                if (typeof value === 'object' && value !== null) {
-                    return Object.entries(value).map(([k, v]) => (
-                        <div key={k} className="flex justify-between py-1 border-b border-gray-700">
-                            <span className="text-gray-400 text-sm">{k}:</span>
-                            <span className="font-medium">{JSON.stringify(v)}</span>
+                // Arrays (incl. top-level arrays of objects) render as wrapped, pretty-printed JSON
+                if (Array.isArray(value)) {
+                    return <pre className="payload-json">{JSON.stringify(value, null, 2)}</pre>;
+                }
+                if (isNested(value)) {
+                    return Object.entries(value).map(([k, v]) => isNested(v) ? (
+                        <div key={k} className="py-1 border-b border-gray-700 min-w-0">
+                            <span className="text-gray-400 text-sm payload-key">{k}:</span>
+                            <pre className="payload-json mt-1">{JSON.stringify(v, null, 2)}</pre>
+                        </div>
+                    ) : (
+                        <div key={k} className="payload-row py-1 border-b border-gray-700">
+                            <span className="text-gray-400 text-sm payload-key">{k}:</span>
+                            <span className="font-medium payload-value">{JSON.stringify(v)}</span>
                         </div>
                     ));
                 }
-                return <div className="text-lg font-mono">{JSON.stringify(value)}</div>;
+                return <div className="text-lg font-mono payload-value text-left">{JSON.stringify(value)}</div>;
             };
 
             const bgClass = darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900';
@@ -450,7 +472,7 @@
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {nodes.map(node => (
-                                    <div key={node.id} className={`${cardBg} rounded-xl shadow-lg border ${borderClass} p-6 hover:shadow-xl transition`}>
+                                    <div key={node.id} className={`${cardBg} rounded-xl shadow-lg border ${borderClass} p-6 hover:shadow-xl transition min-w-0`}>
                                         <div className="flex justify-between items-start mb-4">
                                             <div className="flex-1">
                                                 <h3 className="font-semibold text-lg mb-1 break-all">{node.topic}</h3>
@@ -463,7 +485,7 @@
                                             )}
                                         </div>
 
-                                        <div className={`${darkMode ? 'bg-gray-900' : 'bg-gray-50'} rounded-lg p-4 mb-4 min-h-24`}>
+                                        <div className={`${darkMode ? 'bg-gray-900' : 'bg-gray-50'} rounded-lg p-4 mb-4 min-h-24 payload-box`}>
                                             {node.last_value ? formatValue(node.last_value) : (
                                                 <div className="flex items-center justify-center h-full text-gray-500">
                                                     <Icons.AlertCircle className="w-5 h-5 mr-2" />
@@ -714,7 +736,7 @@
                                 </div>
                                 <div className="space-y-3">
                                     {showDetails.history?.map((entry, idx) => (
-                                        <div key={idx} className={`${darkMode ? 'bg-gray-900' : 'bg-gray-50'} rounded-lg p-4`}>
+                                        <div key={idx} className={`${darkMode ? 'bg-gray-900' : 'bg-gray-50'} rounded-lg p-4 payload-box`}>
                                             <div className="text-xs text-gray-500 mb-2">{new Date(entry.timestamp).toLocaleString()}</div>
                                             {formatValue(entry.payload)}
                                         </div>
