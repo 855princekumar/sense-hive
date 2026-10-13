@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  tests:
+    name: Tests (Python ${{ matrix.python }}${{ matrix.paho && format(', paho-mqtt {0}', matrix.paho) || '' }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.11", "3.12", "3.13"]
+        include:
+          - python: "3.11"
+            paho: "1.6.1"
+    services:
+      mosquitto:
+        # 1.6 accepts anonymous clients on 1883 without a config file
+        image: eclipse-mosquitto:1.6
+        ports:
+          - 1883:1883
+    env:
+      SENSEHIVE_TEST_BROKER: localhost:1883
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r version-1.0/requirements.txt pytest
+          if [ -n "${{ matrix.paho }}" ]; then pip install "paho-mqtt==${{ matrix.paho }}"; fi
+
+      - name: Run regression tests (unit + integration)
+        run: python -m pytest -v
+
+  package:
+    name: pip package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Install wheel in a clean venv and smoke test the CLI
+        run: |
+          python -m venv /tmp/venv
+          /tmp/venv/bin/pip install dist/*.whl
+          /tmp/venv/bin/sensehive --version
+          cd /tmp
+          /tmp/venv/bin/sensehive --port 5055 --data-dir /tmp/sensehive-data > /tmp/cli.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:5055/api/health && break; sleep 1; done
+          curl -sf http://localhost:5055/api/health | grep -q healthy
+          curl -sf -o /dev/null http://localhost:5055/login
+          test -f /tmp/sensehive-data/iot_dashboard.db
+          cat /tmp/cli.log
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: version-1.0
+          load: true
+          tags: sensehive:ci
+
+      - name: Container smoke test
+        run: |
+          test -z "$(docker run --rm --entrypoint ls sensehive:ci -A /app/data)" || { echo "image must not ship a database"; exit 1; }
+          docker run -d --name sh -p 5000:5000 sensehive:ci
+          for i in $(seq 1 30); do curl -sf http://localhost:5000/api/health && break; sleep 1; done
+          curl -sf http://localhost:5000/api/health | grep -q healthy
+          curl -sf -o /dev/null http://localhost:5000/login
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/api/nodes)" = "401"
+          for i in $(seq 1 40); do [ "$(docker inspect -f '{{.State.Health.Status}}' sh)" = healthy ] && break; sleep 2; done
+          docker inspect -f '{{.State.Health.Status}}' sh | grep -q healthy
+          docker logs sh
