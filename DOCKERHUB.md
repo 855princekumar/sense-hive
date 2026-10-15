@@ -32,7 +32,8 @@ under **Settings**.
 | Tag | Description |
 | --- | ----------- |
 | `latest` | Latest release, multi-arch (amd64 + arm64) |
-| `1.1.0`, `1.1` | SenseHive 1.1.0, multi-arch |
+| `1.2.0`, `1.2` | SenseHive 1.2.0, multi-arch |
+| `1.1.0`, `1.1` | SenseHive 1.1.0 |
 | `arm-pi-5` | Same multi-arch release image; kept for existing Raspberry Pi setups |
 | `edge` | Built from the `main` branch on every commit (tested, unreleased) |
 
@@ -52,6 +53,11 @@ Apple Silicon). Docker picks the right architecture automatically.
 | Data management | Retention by age and/or max entries per topic (hourly, or "Run Cleanup Now"), SQLite WAL mode |
 | Security | Login-protected UI and API, persistent random session secret, no data baked into the image |
 | Operations | `/api/health` and `/api/status` endpoints, Docker HEALTHCHECK, timezone-aware timestamps |
+| Heartbeats (1.2) | Optional receiver for the [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service): encrypted, authenticated heartbeats and LWT over a public broker, `/heartbeats` page, read-only API. Off unless `HEARTBEAT_MASTER_KEY` is set |
+
+## What's new in 1.2.0
+
+- Heartbeat receiver (off by default): verifies encrypted heartbeats from edge nodes, per-node online/offline/silent state, `/heartbeats` page, read-only API with a bearer token. See the README
 
 ## What's new in 1.1.0
 
