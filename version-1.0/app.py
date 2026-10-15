@@ -16,7 +16,7 @@ import pytz
 from functools import wraps
 import hashlib
 
-__version__ = '1.2.0'
+__version__ = '1.3.0'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
@@ -24,6 +24,13 @@ TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
 app = Flask(__name__)
 # Own cookie name so it never clashes with other apps on the same host (e.g. Home Assistant ingress)
 app.config['SESSION_COOKIE_NAME'] = 'sensehive_session'
+
+try:
+    from . import security
+except ImportError:                          # run as app.py (Docker image, tests)
+    import security
+security.configure(app)                      # HttpOnly, SameSite, Secure, Path, session lifetime
+login_limiter = security.LoginLimiter()
 
 # Database path - check environment variable or use default
 DB_PATH = os.getenv('DB_PATH', '/app/data/iot_dashboard.db')
@@ -88,9 +95,9 @@ def get_db():
         conn.close()
 
 
-# Hash password
+# Hash password (salted, slow; see security.py)
 def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+    return security.hash_password(password)
 
 
 # Login required decorator
@@ -282,9 +289,11 @@ def init_db():
         # Insert default user if not exists
         c.execute('SELECT COUNT(*) FROM users')
         if c.fetchone()[0] == 0:
-            default_password = hash_password('admin123')
-            c.execute("INSERT INTO users (id, username, password) VALUES (1, 'admin', ?)", (default_password,))
-            print("✅ Default user created: admin/admin123")
+            # SENSEHIVE_ADMIN_PASSWORD sets the first password of a new database
+            # (never printed); otherwise the documented default, to be changed.
+            initial = os.getenv('SENSEHIVE_ADMIN_PASSWORD') or 'admin123'
+            c.execute("INSERT INTO users (id, username, password) VALUES (1, 'admin', ?)", (hash_password(initial),))
+            print("✅ Default user created: admin/" + ("<SENSEHIVE_ADMIN_PASSWORD>" if os.getenv('SENSEHIVE_ADMIN_PASSWORD') else "admin123"))
 
         # Use environment variables for default broker or fallback to HiveMQ
         default_host = os.getenv('DEFAULT_BROKER_HOST', 'broker.hivemq.com')
@@ -571,6 +580,14 @@ def mqtt_watchdog():
                 pass
 
 @app.before_request
+def refuse_cross_site_changes():
+    """CSRF: a page on another site cannot make a signed-in browser change
+    anything here (see security.cross_site)."""
+    if security.cross_site(request):
+        return jsonify({'error': 'Cross-site request refused'}), 403
+
+
+@app.before_request
 def ingress_auto_login():
     if INGRESS_PROXY and request.remote_addr == INGRESS_PROXY and 'logged_in' not in session:
         with get_db() as conn:
@@ -624,22 +641,32 @@ def login():
     username = data.get('username')
     password = data.get('password')
 
-    if not username or not password:
+    if not username or not password or not isinstance(username, str) or not isinstance(password, str):
         return jsonify({'success': False, 'error': 'Username and password required'}), 400
-
-    hashed = hash_password(password)
+    username = username[:64]
+    ip = security.client_ip(request)
+    if login_limiter.blocked(username, ip):
+        return jsonify({'success': False, 'error': 'Too many failed sign-ins. Try again later.'}), 429
 
     with get_db() as conn:
         c = conn.cursor()
-        c.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, hashed))
-        user = c.fetchone()
+        user = c.execute('SELECT username, password FROM users WHERE username = ?', (username,)).fetchone()
+        if user is None:
+            security.burn_time(password)
+        ok = user is not None and security.verify_password(user['password'], password)
+        if ok and security.needs_rehash(user['password']):
+            c.execute('UPDATE users SET password = ? WHERE username = ?', (hash_password(password), username))
+            conn.commit()
 
-        if user:
-            session['logged_in'] = True
-            session['username'] = username
-            return jsonify({'success': True})
-        else:
-            return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
+    if not ok:
+        login_limiter.failed(username, ip)
+        return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
+    login_limiter.succeeded(username)
+    session.clear()                              # a new session on sign-in (no fixation)
+    session.permanent = True
+    session['logged_in'] = True
+    session['username'] = username
+    return jsonify({'success': True})
 
 
 @app.route('/api/logout', methods=['POST'])
@@ -661,14 +688,18 @@ def change_password():
         return jsonify({'success': False, 'error': 'Both passwords required'}), 400
 
     username = session.get('username')
-    current_hashed = hash_password(current_password)
+    if not isinstance(new_password, str) or len(new_password) < 8:
+        return jsonify({'success': False, 'error': 'The new password needs at least 8 characters'}), 400
+    ip = security.client_ip(request)
+    if login_limiter.blocked(username, ip):
+        return jsonify({'success': False, 'error': 'Too many failed attempts. Try again later.'}), 429
 
     with get_db() as conn:
         c = conn.cursor()
-        c.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, current_hashed))
-        user = c.fetchone()
+        user = c.execute('SELECT password FROM users WHERE username = ?', (username,)).fetchone()
 
-        if not user:
+        if not user or not security.verify_password(user['password'], current_password):
+            login_limiter.failed(username, ip)
             return jsonify({'success': False, 'error': 'Current password incorrect'}), 401
 
         new_hashed = hash_password(new_password)
