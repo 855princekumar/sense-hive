@@ -1,4 +1,4 @@
 Flask>=2.3,<4
 paho-mqtt>=1.6,<3
 pytz
-cryptography>=42
+cryptography>=50.0.2
