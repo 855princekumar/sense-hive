@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="SenseHive Banner"/>
 </p>
 
-![Release](https://img.shields.io/badge/release-v1.1.0-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white)
+![Release](https://img.shields.io/badge/release-v1.2.0-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white)
 
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
@@ -32,6 +32,7 @@
 - [Dashboard Preview](#dashboard-preview)
 - [Key Features](#key-features)
 - [What's New in v1.1](#whats-new-in-v11)
+- [Heartbeat receiver (v1.2)](#heartbeat-receiver-v12)
 - [Overview](#overview)
 - [Example Use Cases](#example-use-cases)
 - [Why SenseHive Was Built](#why-sensehive-was-built)
@@ -202,6 +203,49 @@ Existing v1.0 databases are migrated automatically on first start. Keep your `/a
 
 ---
 
+## Heartbeat receiver (v1.2)
+
+SenseHive can receive **encrypted, authenticated heartbeats** from edge nodes
+running the [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service),
+over a public broker, and serve their state read-only (used by
+[EdgeShell](https://github.com/855princekumar/edgeshell) for VPN-independent
+uptime and LWT status on its node cards).
+
+- **Off by default.** Set `HEARTBEAT_MASTER_KEY` (64 hex characters) to turn it
+  on. Nothing else in SenseHive changes: it uses its own TLS connection to the
+  heartbeat broker and its own tables.
+- **Verified, not trusted.** Every message is AES-256-GCM encrypted and
+  authenticated with the sending node's own key, on topics that change every
+  ten minutes. Messages from strangers on the broker, replays and messages
+  sealed with another key are dropped (and counted).
+- **State per node:** `online` (heartbeats arriving), `offline` (its last will
+  arrived), `silent` (no heartbeat and no will: usually the broker or internet
+  path). Changes are kept as events; per-minute presence is kept for
+  `HEARTBEAT_KEEP_DAYS` (30) for uptime calculations.
+- **Page:** `/heartbeats` (signed in) lists every node.
+- **Read-only API** (`GET` only), with `Authorization: Bearer <HEARTBEAT_API_TOKEN>`
+  or a signed-in session:
+
+| Endpoint | Returns |
+| -------- | ------- |
+| `/api/heartbeat/status` | receiver on, broker connected, nodes seen, rejected messages |
+| `/api/heartbeat/nodes` | per node: status, last heartbeat, since, last will time, agent version |
+| `/api/heartbeat/minutes?since=<unix>` | per node, the minutes with a verified heartbeat |
+| `/api/heartbeat/events?since=<unix>` | status changes, oldest first |
+
+| Variable | Default | Purpose |
+| -------- | ------- | ------- |
+| `HEARTBEAT_MASTER_KEY` | empty (off) | Fleet master key, 64 hex characters (secret) |
+| `HEARTBEAT_API_TOKEN` | empty | Bearer token for the API, at least 32 characters (secret) |
+| `HEARTBEAT_BROKER` / `HEARTBEAT_PORT` / `HEARTBEAT_TLS` | `broker.hivemq.com` / `8883` / `true` | Heartbeat broker (TLS, certificate verified) |
+| `HEARTBEAT_STALE_SECONDS` | `35` | No heartbeat for this long: `silent` |
+| `HEARTBEAT_KEEP_DAYS` | `30` | Per-minute presence and events kept for |
+
+Keep both secrets out of compose files you commit: use an `.env` file next to
+`docker-compose.yml`.
+
+---
+
 ## Overview
 
 SenseHive is a self-hosted MQTT data ingestion and visualization system designed for **rapid deployment, minimal overhead, and reliable local operation**.
@@ -331,7 +375,7 @@ docker pull devprincekumar/sense-hive:latest
 ```
 
 * One multi-arch image for AMD64 / x86 and ARM64 (Raspberry Pi 4/5); Docker picks the right one
-* Pin a release with `devprincekumar/sense-hive:1.1.0`; `edge` tracks the `main` branch
+* Pin a release with `devprincekumar/sense-hive:1.2.0`; `edge` tracks the `main` branch
 * `arm-pi-5` remains available and points to the same multi-arch release
 
 ---
@@ -417,7 +461,7 @@ One-click deployment for Home Assistant OS / Supervised users.
 | ----- | ------ |
 | Home Assistant app linter (official schema) | Passed |
 | AppArmor profile parse (`apparmor_parser`) | Passed |
-| Multi-arch image build (amd64 + aarch64) | Passed, published as `devprincekumar/sense-hive:1.1.0` |
+| Multi-arch image build (amd64 + aarch64) | Passed, published as `devprincekumar/sense-hive:1.2.0` |
 | Sandbox: mock Supervisor at 172.30.32.2 + Mosquitto with credentials + ingress proxy | 26/26 checks passed |
 | Real Home Assistant: official apps devcontainer, Home Assistant 2026.10.1 + Supervisor 2026.10.2 (store install, Mosquitto discovery, ingress via Core, data flow, LWT, restart, backup) | 21/21 checks passed |
 | Supervisor security rating | 8/8 (AppArmor profile, no API or host access, protected mode) |
@@ -586,6 +630,7 @@ Environment variables set the defaults for a new database:
 | `SECRET_KEY` | random, persisted next to the DB | Session secret |
 | `DB_PATH` | `/app/data/iot_dashboard.db` | Database location |
 | `HOST` / `PORT` | `0.0.0.0` / `5000` | Listen address for `python app.py` |
+| `HEARTBEAT_*` | off | Heartbeat receiver, see [Heartbeat receiver](#heartbeat-receiver-v12) |
 
 ---
 
@@ -724,7 +769,11 @@ It is not intended to replace full-scale IoT platforms.
 
 ## Versioning and Release Status
 
-### v1.1 (Current)
+### v1.2 (Current)
+
+* Heartbeat receiver: encrypted, authenticated heartbeats and LWT from edge nodes over a public broker, `/heartbeats` page, read-only API ([Heartbeat receiver](#heartbeat-receiver-v12))
+
+### v1.1
 
 * SQLite WAL mode and data retention
 * Topic stats, tags, node grouping and LWT device status

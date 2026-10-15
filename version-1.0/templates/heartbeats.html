@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SenseHive heartbeats</title>
+<style>
+  :root { --bg:#f8fafc; --card:#fff; --text:#0f172a; --muted:#64748b; --line:#e2e8f0;
+          --ok:#059669; --bad:#dc2626; --warn:#d97706; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0b1220; --card:#111a2e; --text:#e2e8f0; --muted:#94a3b8; --line:#1e293b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 Inter, "Segoe UI", Roboto, Arial, sans-serif; }
+  header { display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:14px 20px; background:var(--card); border-bottom:1px solid var(--line); }
+  header b { font-size:16px; }
+  header .sp { flex:1; }
+  header a { color:inherit; }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  .summary { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .pill { background:var(--card); border:1px solid var(--line); border-radius:999px; padding:4px 12px; }
+  .wrap { overflow-x:auto; background:var(--card); border:1px solid var(--line); border-radius:10px; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; }
+  .st { font-weight:600; }
+  .online { color:var(--ok); } .offline { color:var(--bad); } .silent { color:var(--warn); }
+  .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <b>Heartbeats</b>
+  <span class="muted" id="conn">connecting...</span>
+  <span class="sp"></span>
+  <a href="./">Dashboard</a>
+</header>
+<main>
+  <p class="muted">Verified heartbeats from the MQTT heartbeat agent on each node. <b>online</b>: a heartbeat in the
+    last few seconds. <b>offline</b>: the node's last will arrived (its connection dropped). <b>silent</b>: no
+    heartbeat and no last will, usually the broker or the internet path, not the node.</p>
+  <div class="summary" id="summary"></div>
+  <div class="wrap"><table>
+    <thead><tr><th>Node</th><th>Status</th><th>Last heartbeat</th><th>Since</th><th>Last will</th><th>Agent</th></tr></thead>
+    <tbody id="rows"><tr><td colspan="6" class="muted">Loading...</td></tr></tbody>
+  </table></div>
+</main>
+<script>
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]);
+}
+function ago(t) {
+  if (!t) return '<span class="muted">never</span>';
+  const s = Math.max(0, Math.round(Date.now() / 1000 - t));
+  const text = s < 60 ? s + ' s ago' : s < 3600 ? Math.round(s / 60) + ' min ago' : Math.round(s / 3600) + ' h ago';
+  return `<span title="${esc(new Date(t * 1000).toLocaleString())}">${text}</span>`;
+}
+async function load() {
+  try {
+    const r = await fetch('api/heartbeat/nodes', {credentials: 'same-origin'});
+    if (r.status === 401) { location.href = 'login'; return; }
+    const d = await r.json();
+    document.getElementById('conn').textContent = !d.enabled ? 'receiver off (HEARTBEAT_MASTER_KEY not set)'
+      : d.connected ? 'connected to the heartbeat broker' : 'not connected to the heartbeat broker';
+    const counts = {online: 0, offline: 0, silent: 0};
+    d.nodes.forEach(n => counts[n.status] = (counts[n.status] || 0) + 1);
+    document.getElementById('summary').innerHTML =
+      `<span class="pill">${d.nodes.length} nodes</span>` +
+      ['online', 'silent', 'offline'].map(s => `<span class="pill ${s}">${counts[s] || 0} ${s}</span>`).join('');
+    document.getElementById('rows').innerHTML = d.nodes.length ? d.nodes.map(n => `<tr>
+      <td>${esc(n.name)}</td>
+      <td class="st ${esc(n.status)}">${esc(n.status)}</td>
+      <td>${ago(n.last_seen)}</td><td>${ago(n.since)}</td><td>${ago(n.lwt_at)}</td>
+      <td class="muted">${esc(n.agent_version || '')}</td></tr>`).join('')
+      : '<tr><td colspan="6" class="muted">No heartbeats yet.</td></tr>';
+  } catch (e) {
+    document.getElementById('conn').textContent = 'could not load';
+  }
+}
+load();
+setInterval(load, 10000);
+</script>
+</body>
+</html>

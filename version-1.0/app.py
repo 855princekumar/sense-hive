@@ -16,7 +16,7 @@ import pytz
 from functools import wraps
 import hashlib
 
-__version__ = '1.1.0'
+__version__ = '1.2.0'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
@@ -324,6 +324,7 @@ def init_db():
                       (key, str(max(env_int(env_name, 0), 0))))
 
         conn.commit()
+    heartbeat_receiver.init_db()
 
 
 def get_setting_int(key, default=0):
@@ -993,6 +994,27 @@ def export_node(node_id):
             return jsonify({'error': str(e)}), 500
 
 
+# ============================================================================
+# HEARTBEATS - verified MQTT heartbeats from edge nodes (off unless
+# HEARTBEAT_MASTER_KEY is set). Read-only API for EdgeShell; see heartbeat.py.
+# ============================================================================
+try:
+    from . import heartbeat as heartbeat_module
+except ImportError:                          # run as app.py (Docker image, tests)
+    import heartbeat as heartbeat_module
+
+heartbeat_receiver = heartbeat_module.register(app, get_db, lambda: 'logged_in' in session,
+                                               lambda: new_mqtt_client())
+
+
+@app.route('/heartbeats')
+def heartbeats_page():
+    """Heartbeat status of every node - REQUIRES LOGIN"""
+    if 'logged_in' not in session:
+        return redirect('login')
+    return send_from_directory(TEMPLATE_DIR, 'heartbeats.html')
+
+
 @app.route('/stream')
 def stream():
     """SSE stream - REQUIRES LOGIN"""
@@ -1036,6 +1058,9 @@ def run(host='0.0.0.0', port=5000):
 
     init_db()
     init_mqtt()
+    heartbeat_receiver.start(new_mqtt_client)
+    if heartbeat_receiver.enabled:
+        print("💓 Heartbeat receiver on: verified heartbeats from edge nodes")
 
     # Start watchdog and retention threads
     threading.Thread(target=mqtt_watchdog, daemon=True).start()
