@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="SenseHive Banner"/>
 </p>
 
-![Release](https://img.shields.io/badge/release-v1.2.0-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white)
+![Release](https://img.shields.io/badge/release-v1.3.0-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white)
 
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
@@ -375,7 +375,7 @@ docker pull devprincekumar/sense-hive:latest
 ```
 
 * One multi-arch image for AMD64 / x86 and ARM64 (Raspberry Pi 4/5); Docker picks the right one
-* Pin a release with `devprincekumar/sense-hive:1.2.0`; `edge` tracks the `main` branch
+* Pin a release with `devprincekumar/sense-hive:1.3.0`; `edge` tracks the `main` branch
 * `arm-pi-5` remains available and points to the same multi-arch release
 
 ---
@@ -461,7 +461,7 @@ One-click deployment for Home Assistant OS / Supervised users.
 | ----- | ------ |
 | Home Assistant app linter (official schema) | Passed |
 | AppArmor profile parse (`apparmor_parser`) | Passed |
-| Multi-arch image build (amd64 + aarch64) | Passed, published as `devprincekumar/sense-hive:1.2.0` |
+| Multi-arch image build (amd64 + aarch64) | Passed, published as `devprincekumar/sense-hive:1.3.0` |
 | Sandbox: mock Supervisor at 172.30.32.2 + Mosquitto with credentials + ingress proxy | 26/26 checks passed |
 | Real Home Assistant: official apps devcontainer, Home Assistant 2026.10.1 + Supervisor 2026.10.2 (store install, Mosquitto discovery, ingress via Core, data flow, LWT, restart, backup) | 21/21 checks passed |
 | Supervisor security rating | 8/8 (AppArmor profile, no API or host access, protected mode) |
@@ -631,6 +631,11 @@ Environment variables set the defaults for a new database:
 | `DB_PATH` | `/app/data/iot_dashboard.db` | Database location |
 | `HOST` / `PORT` | `0.0.0.0` / `5000` | Listen address for `python app.py` |
 | `HEARTBEAT_*` | off | Heartbeat receiver, see [Heartbeat receiver](#heartbeat-receiver-v12) |
+| `SENSEHIVE_ADMIN_PASSWORD` | empty (`admin123`) | First password of the `admin` user in a new database (never printed) |
+| `SENSEHIVE_MAX_FAILED_LOGINS` / `SENSEHIVE_LOCK_MINUTES` | `5` / `15` | Sign-in is refused for a user or an address after this many failures in this window |
+| `SENSEHIVE_TRUST_PROXY` | `false` | Behind a reverse proxy: take the client address from `X-Real-IP` (limits per real client) |
+| `SENSEHIVE_COOKIE_SECURE` / `_SAMESITE` / `_PATH` | `false` / `Lax` / `/` | Session cookie flags (always HttpOnly); behind HTTPS use `true` / `Strict` |
+| `SENSEHIVE_SESSION_HOURS` | `12` | Session lifetime |
 
 ---
 
@@ -769,7 +774,11 @@ It is not intended to replace full-scale IoT platforms.
 
 ## Versioning and Release Status
 
-### v1.2 (Current)
+### v1.3 (Current)
+
+* Sign-in hardening: salted, slow password hashes (old ones upgraded on the next sign-in), lockout after repeated failures per user and per address, a new session on every sign-in, cross-site requests that change data refused, HttpOnly cookies with configurable SameSite, Secure and Path, optional first admin password from the environment
+
+### v1.2
 
 * Heartbeat receiver: encrypted, authenticated heartbeats and LWT from edge nodes over a public broker, `/heartbeats` page, read-only API ([Heartbeat receiver](#heartbeat-receiver-v12))
 
