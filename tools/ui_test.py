@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import random
+import re
 import sys
 import tempfile
 import threading
@@ -117,7 +118,9 @@ TOPICS = [
 ]
 HB_NODES = [('gateway-01', 'online', 0, 1.2), ('pi-node-2', 'online', 0, 1.2),
             ('mini-pc', 'offline', 900, 1.1),
-            ('plant-east-gate-sensor-hub-panel-with-a-long-name', 'silent', 400, 1.1)]
+            ('plant-east-gate-sensor-hub-panel-with-a-long-name', 'silent', 400, 1.1),
+            ('old-pump-node', 'offline', 3 * 3600, 1.0)]
+NO_BEATS = {'old-pump-node'}            # went offline before heartbeat history was kept
 
 
 def seed(app):
@@ -156,8 +159,10 @@ def seed(app):
                 t += 10
             if status == 'offline':
                 beats.append((node, end + 30, 2, None))
+            if name in NO_BEATS:
+                beats = []
             conn.executemany('INSERT OR IGNORE INTO hb_beats (node, t, kind, lag) VALUES (?, ?, ?, ?)', beats)
-            minutes = {int(b[1] // 60) for b in beats}
+            minutes = {int(b[1] // 60) for b in beats} or set(range(int((end - 7200) // 60), int(end // 60)))
             minutes |= {m for m in range(int((now - 7 * 86400) // 60), int((end - 7200) // 60))
                         if (m // 60) % 23 != 5}                            # an hour off now and then
             conn.executemany('INSERT OR IGNORE INTO hb_minutes (name, minute) VALUES (?, ?)', [(name, m) for m in minutes])
@@ -375,7 +380,7 @@ def run_interactions(pw, base, rep, label, w, h, scale):
     rep.check(f'{label}: the heartbeats view lists every node', rows == len(HB_NODES), rows, page)
     for state in ('online', 'offline', 'silent'):
         rep.check(f'{label}: a {state} heartbeat node is shown', page.locator(f'.hb-state[data-state="{state}"]').count() >= 1, '', page)
-    for state, want in (('online', 2), ('offline', 1), ('silent', 1)):
+    for state, want in (('online', 2), ('offline', 2), ('silent', 1)):
         page.select_option('#hbState', state)
         page.wait_for_timeout(300)
         shown = page.locator('#hbTable tbody tr').count()
@@ -396,12 +401,27 @@ def run_interactions(pw, base, rep, label, w, h, scale):
     page.wait_for_timeout(800)
     rep.check(f'{label}: 7 days shows hourly uptime bars', page.locator('.sh-modal svg rect').count() > 100,
               page.locator('.sh-modal svg rect').count(), page)
+    rep.check(f'{label}: an online node has no outage banner', page.locator('#hbDownNow').count() == 0, '', page)
     with page.expect_download() as dl:
         page.click('#hbExportOne')
     one = dl.value
     body = read_text(one.path())
     rep.check(f'{label}: one node exports as CSV', one.suggested_filename.endswith('.csv') and body.startswith('node,'),
               one.suggested_filename, page)
+    page.keyboard.press('Escape')
+
+    page.locator('#hbTable tbody tr', has_text='old-pump-node').locator('.hb-history').click()
+    page.wait_for_selector('.sh-modal svg')
+    page.wait_for_timeout(800)
+    down = page.locator('#hbDownNow')
+    text = down.inner_text() if down.count() else ''
+    rep.check(f'{label}: a node offline since before the range shows its outage',
+              bool(re.search(r'Offline for 3\.\d h', text)) and 'before this range' in text, text, page)
+    text = page.inner_text('.sh-modal')
+    rep.check(f'{label}: the outage is listed as a break still going', '(still going)' in text, text[:300], page)
+    page.click('.sh-modal [data-range="30d"]')
+    page.wait_for_timeout(800)
+    rep.check(f'{label}: the outage shows on 30 days too', page.locator('#hbDownNow').count() == 1, '', page)
     page.keyboard.press('Escape')
 
     boxes = page.locator('#hbTable tbody input[type=checkbox]')

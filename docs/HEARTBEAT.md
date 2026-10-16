@@ -132,6 +132,15 @@ with their times. A **break** is a gap longer than 2.5 times the usual interval
 seconds. The status band under the chart shows online, silent and offline
 periods.
 
+A node that is **offline or silent now** always shows its outage on every
+period, in red above the figures: how long it has been down since its last
+heartbeat, and when its last will arrived. That holds also when the last
+heartbeat is older than the chosen period, or older than the kept heartbeats
+(a node that went down before heartbeat history existed). With fewer than two
+heartbeats to measure, the agent's 10-second interval is assumed. A last will
+inside an outage does not split it: the break runs from the last heartbeat to
+the next one.
+
 ![Heartbeat history, 1 day](../assets/heartbeat-history.png)
 
 ![Heartbeat history, 7 days](../assets/heartbeat-uptime.png)
@@ -218,13 +227,18 @@ The data behind the history chart for one node:
 {"node": "pi-node-01", "range": "1h", "since": 1760606412.0, "until": 1760610012.0,
  "kind": "beats", "points": [[1760606415.2, 1, 0.21], [1760606425.2, 1, 0.19]],
  "interval": 10.0, "received": 352, "lag_ms": 210, "longest_break": 180.0,
- "breaks": [{"from": 1760608000.1, "to": 1760608180.3, "seconds": 180.2}],
+ "breaks": [{"from": 1760608000.1, "to": 1760608180.3, "seconds": 180.2, "lwt_at": 1760608031.4}],
+ "current_break": null,
  "events": [{"status": "online", "at": 1760541203.0}], "uptime": 95.0}
 ```
 
 `points` are `[receive time, kind (0 birth, 1 heartbeat, 2 last will), delay
 in seconds]`. For `7d` and `30d`, `kind` is `"hours"` and `points` are
-`[hour start, online minutes, minutes in range]`. `400` for an unknown range,
+`[hour start, online minutes, minutes in range]`. `current_break` (every
+period) is the outage still going on, or `null`: `{"from": <last heartbeat>,
+"to": null, "seconds": ..., "status": "offline" | "silent", "lwt_at": ...}`;
+`from` may be before `since`. For `1m` to `1d` it is also the last item of
+`breaks`. `400` for an unknown range,
 `404` for an unknown node.
 
 ### `GET /api/heartbeat/export.csv?nodes=<a,b|all>&what=<beats|minutes|events>&since=<unix>&until=<unix>`

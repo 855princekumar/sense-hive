@@ -69,6 +69,14 @@ KINDS = {'birth': 0, 'hb': 1, 'lwt': 2}
 KIND_NAMES = {v: k for k, v in KINDS.items()}
 RANGES = {'1m': 60, '1h': 3600, '1d': 86400, '7d': 7 * 86400, '30d': 30 * 86400}
 CSV_KINDS = ('beats', 'minutes', 'events')
+AGENT_INTERVAL = 10                     # the agent's default heartbeat interval, in seconds
+
+
+def break_limit(typical):
+    """A gap longer than this is a break: 2.5 heartbeat intervals, and at least 5 s more than one.
+    With fewer than two heartbeats to measure, the agent's default interval is assumed."""
+    step = typical or AGENT_INTERVAL
+    return max(2.5 * step, step + 5)
 
 
 def csv_cell(value):
@@ -309,21 +317,28 @@ class Receiver:
         detailed = span <= 86400 and self.beats_hours * 3600 >= min(span, 3600)
         if detailed:
             beats = self.beats(name, since, now)
-            gaps = [b[0] - a[0] for a, b in zip(beats, beats[1:]) if b[1] != KINDS['lwt']]
+            # breaks are measured between heartbeats; a last will inside an outage does not split it
+            alive = [b[0] for b in beats if b[1] != KINDS['lwt']]
+            gaps = [b - a for a, b in zip(alive, alive[1:])]
             typical = sorted(gaps)[len(gaps) // 2] if gaps else None
-            limit = max(2.5 * typical, typical + 5) if typical else None
+            limit = break_limit(typical)
             breaks = []
-            for a, b in zip(beats, beats[1:]):
-                if limit and b[0] - a[0] > limit:
-                    breaks.append({'from': a[0], 'to': b[0], 'seconds': round(b[0] - a[0], 1)})
-            if beats and limit and now - beats[-1][0] > limit:
-                breaks.append({'from': beats[-1][0], 'to': None, 'seconds': round(now - beats[-1][0], 1)})
+            for a, b in zip(alive, alive[1:]):
+                if b - a > limit:
+                    br = {'from': a, 'to': b, 'seconds': round(b - a, 1)}
+                    lwt = next((t for t, k, _ in beats if k == KINDS['lwt'] and a < t < b), None)
+                    if lwt:
+                        br['lwt_at'] = lwt
+                    breaks.append(br)
+            current = self.current_break(name, alive[-1] if alive else None, limit, now)
+            if current:
+                breaks.append(current)
             lags = [b[2] for b in beats if b[2] is not None]
             out.update(kind='beats', points=[[round(t, 3), k, lag] for t, k, lag in beats],
                        interval=round(typical, 1) if typical else None, breaks=breaks,
                        received=sum(1 for b in beats if b[1] != KINDS['lwt']),
                        lag_ms=round(1000 * sorted(lags)[len(lags) // 2]) if lags else None,
-                       longest_break=max((b['seconds'] for b in breaks), default=0))
+                       longest_break=max((b['seconds'] for b in breaks), default=0), current_break=current)
         else:
             minutes = set(self.minutes(since, now).get(name, []))
             first = int(since // 3600) * 3600
@@ -332,11 +347,30 @@ class Receiver:
                 total = len([m for m in range(h, h + 3600, 60) if since <= m <= now])
                 up = len([m for m in range(h, h + 3600, 60) if m in minutes])
                 buckets.append([h, up, total])
-            out.update(kind='hours', points=buckets)
+            out.update(kind='hours', points=buckets,
+                       current_break=self.current_break(name, None, break_limit(None), now))
         mins = self.minutes(since, now).get(name, [])
         total = max(int(span // 60), 1)
         out['uptime'] = round(100.0 * min(len(mins), total) / total, 2)
         return out
+
+    def current_break(self, name, last_beat, limit, now):
+        """The outage still going on, or None. It starts at the node's last heartbeat,
+        which may be older than the chart's range (or older than the kept heartbeats)."""
+        status = self.tracker.status(name, now=now, stale_after=self.stale)
+        with self.db() as conn:
+            row = conn.execute('SELECT status, last_seen, lwt_at FROM hb_nodes WHERE name = ?', (name,)).fetchone()
+        if row is None:
+            return None
+        status = status or row['status']
+        known = [t for t in (last_beat, row['last_seen']) if t is not None]
+        last = max(known) if known else row['lwt_at']    # only a last will was ever heard
+        if last is None or status == 'online' or (status is None and now - last <= limit):
+            return None
+        br = {'from': last, 'to': None, 'seconds': round(now - last, 1), 'status': status or 'silent'}
+        if row['lwt_at'] and row['lwt_at'] >= last and status == 'offline':
+            br['lwt_at'] = row['lwt_at']
+        return br
 
     def export_csv(self, names, since, until, what):
         """CSV text for some nodes: every heartbeat, the online minutes, or the status changes."""
