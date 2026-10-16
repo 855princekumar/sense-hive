@@ -15,12 +15,19 @@ import queue
 import pytz
 from functools import wraps
 
-__version__ = '1.4.2'
+__version__ = '1.5.0'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
 
 app = Flask(__name__)
+# Request bodies are small JSON forms; anything bigger is refused before it is read.
+app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024
+# MQTT payloads bigger than this are dropped (and counted), so a publisher cannot fill the disk.
+MAX_PAYLOAD_BYTES = max(int(os.getenv('MQTT_MAX_PAYLOAD_BYTES', '65536') or 65536), 1024)
+# Open live-update streams (browser tabs) at once; more get 503 instead of exhausting threads.
+MAX_STREAMS = max(int(os.getenv('SENSEHIVE_MAX_STREAMS', '50') or 50), 1)
+dropped_payloads = 0
 # Own cookie name so it never clashes with other apps on the same host (e.g. Home Assistant ingress)
 app.config['SESSION_COOKIE_NAME'] = 'sensehive_session'
 
@@ -138,7 +145,8 @@ def configure_secret_key():
         if not key:
             key = secrets.token_hex(32)
             try:
-                with open(key_file, 'w') as f:
+                fd = os.open(key_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)   # owner only
+                with os.fdopen(fd, 'w') as f:
                     f.write(key)
             except OSError:
                 pass
@@ -501,14 +509,19 @@ def on_message(client, userdata, msg):
     MQTT message handler - RUNS AUTOMATICALLY WITHOUT GUI/LOGIN
     This is the core data logging function
     """
+    global dropped_payloads
     try:
         topic = msg.topic
+        if len(msg.payload) > MAX_PAYLOAD_BYTES:
+            dropped_payloads += 1
+            print(f"⚠️ Dropped a {len(msg.payload)}-byte message on {log_safe(topic, 120)} (limit {MAX_PAYLOAD_BYTES})")
+            return
         payload_str = msg.payload.decode('utf-8', errors='replace')
 
-        # Try to parse JSON
+        # Try to parse JSON (deeply nested input is kept as text, not parsed)
         try:
             payload = json.loads(payload_str)
-        except ValueError:
+        except (ValueError, RecursionError):
             payload = {"value": payload_str}
 
         localized_time = get_localized_timestamp()
@@ -535,13 +548,13 @@ def on_message(client, userdata, msg):
             conn.commit()
 
         for lwt_topic, state in lwt_updates.items():
-            print(f"💡 LWT {lwt_topic}: {state}")
+            print(f"💡 LWT {log_safe(lwt_topic, 120)}: {state}")
             publish_event({'type': 'lwt', 'lwt_topic': lwt_topic, 'status': state, 'timestamp': localized_time})
 
         if not matched:
             return
 
-        print(f"📝 Logged data for {topic}: {json.dumps(payload)[:50]}...")
+        print(f"📝 Logged data for {log_safe(topic, 120)}: {log_safe(json.dumps(payload), 50)}...")
 
         # Push to SSE (only if someone is watching GUI)
         for sub in matched:
@@ -553,7 +566,7 @@ def on_message(client, userdata, msg):
             })
 
     except Exception as e:
-        print(f"❌ Error processing message: {e}")
+        print(f"❌ Error processing message: {type(e).__name__}")
 
 
 # Initialize MQTT client
@@ -610,6 +623,9 @@ def security_headers(resp):
     resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
     resp.headers.setdefault('Referrer-Policy', 'same-origin')
     resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    resp.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()')
+    resp.headers.setdefault('Cross-Origin-Opener-Policy', 'same-origin')
+    resp.headers.setdefault('Cross-Origin-Resource-Policy', 'same-origin')
     return resp
 
 
@@ -637,12 +653,11 @@ def ingress_auto_login():
 @app.route('/api/health')
 def health():
     """Health check endpoint - NO AUTH REQUIRED"""
-    return jsonify({
-        'status': 'healthy',
-        'mqtt_connected': mqtt_connected,
-        'version': __version__,
-        'timestamp': datetime.now().isoformat()
-    })
+    out = {'status': 'healthy', 'mqtt_connected': mqtt_connected, 'timestamp': datetime.now().isoformat()}
+    # The exact version helps an attacker pick an exploit: shown only to users and tools that signed in.
+    if 'logged_in' in session or heartbeat_receiver.token_ok(request.headers.get('Authorization', '')):
+        out['version'] = __version__
+    return jsonify(out)
 
 
 @app.route('/api/status')
@@ -803,6 +818,19 @@ def test_broker():
         app.logger.warning('Broker test to %s:%s failed: %s', log_safe(data.get('host')), log_safe(data.get('port')),
                            log_safe(repr(e)))
         return jsonify({'success': False, 'error': broker_error_text(e)})
+
+
+def csv_cell(value):
+    """A CSV cell a spreadsheet never runs as a formula (a leading =, +, -, @, tab or CR is escaped).
+    Plain numbers such as -12.5 stay numbers."""
+    text = '' if value is None else str(value)
+    if text[:1] in ('-', '+'):
+        try:
+            float(text)
+            return text
+        except ValueError:
+            pass
+    return "'" + text if text[:1] in ('=', '+', '-', '@', '\t', '\r') else text
 
 
 def log_safe(value, limit=200):
@@ -1076,7 +1104,7 @@ def export_node(node_id):
             writer.writerow(['Timestamp', 'Payload'])
 
             for row in rows:
-                writer.writerow([row['timestamp'], row['payload']])
+                writer.writerow([csv_cell(row['timestamp']), csv_cell(row['payload'])])
 
             output.seek(0)
             return Response(
@@ -1107,7 +1135,7 @@ def heartbeats_page():
     """Heartbeat status of every node - REQUIRES LOGIN"""
     if 'logged_in' not in session:
         return redirect('login')
-    return send_from_directory(TEMPLATE_DIR, 'heartbeats.html')
+    return redirect('./?view=heartbeats')            # part of the dashboard since 1.5
 
 
 @app.route('/stream')
@@ -1118,6 +1146,8 @@ def stream():
 
     client_queue = queue.Queue(maxsize=1000)
     with sse_lock:
+        if len(sse_clients) >= MAX_STREAMS:
+            return Response("Too many open live views", status=503)
         sse_clients.add(client_queue)
 
     def event_stream():

@@ -9,9 +9,9 @@ version-1.0/            the service (what Docker and pip ship)
   heartbeat_protocol.py shared protocol (same file in the agent and EdgeShell)
   security.py           password hashing, lockout, CSRF and cookie settings
   cli.py                the `sensehive` command (pip install)
-  templates/            index.html, login.html, heartbeats.html (no inline scripts)
+  templates/            index.html, login.html (no inline scripts)
   static/               BUILT browser code, committed (see below)
-frontend/               browser sources: dashboard.jsx, login.jsx, heartbeats.js, input.css
+frontend/               browser sources: dashboard.jsx, heartbeats.jsx (the heartbeats view), login.jsx, input.css
 tools/
   build_frontend.mjs    builds frontend/ into version-1.0/static
   ui_test.py            browser UI test (Playwright)
@@ -68,8 +68,17 @@ Light is the default; the dark choice is kept in `localStorage`
   sub-paths (Home Assistant ingress, `/sensehive/` behind EdgeShell).
 - Boxes that hold user text get `min-w-0` and wrap (`break-all`,
   `overflow-wrap: anywhere`) so long topics and payloads stay inside.
-- Test hooks: cards `.sh-card`, top bar `.sh-nav`, summary bar `.sh-bar`,
-  dialogs `.sh-modal` (Escape closes them).
+- Test hooks: topic cards `.sh-card`, view cards `#viewTopics` and
+  `#viewHeartbeats`, top bar `.sh-nav`, summary bar `.sh-bar`, dialogs
+  `.sh-modal` with a scrolling `.sh-modal-body` (Escape closes them), heartbeat
+  table `#hbTable` with `.hb-history` buttons.
+- Dialogs: `.sh-modal` gets a maximum height of the visible screen and a column
+  layout; put the scrolling part in `.sh-modal-body` and keep the title and
+  buttons outside it. Render dialogs inside an animated view with a portal to
+  `document.body`.
+- Motion: animate only `opacity` and `transform` (`.sh-fade-up`, `.sh-view`),
+  with `animation-fill-mode: backwards`, and keep the `prefers-reduced-motion`
+  rule in `input.css`.
 
 ## Tests
 
@@ -94,15 +103,19 @@ It starts SenseHive on a temporary database seeded with long topic names,
 nested and array payloads, LWT states and heartbeat nodes in every state, then
 in Chromium:
 
-- loads the sign-in page, the dashboard, the heartbeats page and the settings
-  and add-node dialogs on **phone, tablet, laptop and desktop**, at **67, 125,
-  150 and 200 % zoom**, and in **light and dark**;
+- loads the sign-in page, both dashboard views and every dialog (settings,
+  add node, password, topic history, heartbeat history at each period) on
+  **phone, tablet, laptop and desktop**, at **67, 125, 150 and 200 % zoom**,
+  and in **light and dark**;
+- fails when a dialog does not fit fully inside the visible screen;
 - fails when a page scrolls sideways, something sticks out of its card, dialog
   or bar, text spills out of its box, a short word breaks over two lines, a
   JavaScript error or **CSP violation** occurs;
 - signs in (and is refused with a wrong password), filters by tag, sorts,
-  groups by node, switches and remembers the theme, adds a topic, opens the
-  heartbeats page and signs out, on desktop and phone.
+  groups by node, switches and remembers the theme, switches views with the
+  cards, opens heartbeat history (breaks found, hourly uptime), downloads CSV
+  for one, selected and all nodes, adds a topic and signs out, on desktop and
+  phone.
 
 Screenshots of failures go to `--out`. `--min-checks N` fails a run that
 silently shrank.

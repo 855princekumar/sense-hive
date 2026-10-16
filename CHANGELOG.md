@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.5.0 (2026-10-16)
+
+**Heartbeat history**
+- Every verified heartbeat is kept (`HEARTBEAT_BEATS_HOURS`, 48): per-node
+  charts for 1 minute, 1 hour and 1 day (gaps between heartbeats, breaks, last
+  wills) and 7 and 30 days (uptime per hour), with uptime, longest break,
+  breaks list and delivery delay.
+- CSV export for one node, the selected nodes or all: every heartbeat, online
+  minutes or status changes. New API: `/api/heartbeat/history`,
+  `/api/heartbeat/export.csv`.
+
+**Interface**
+- Two cards at the top of the dashboard, Topic logs and Heartbeats, replace the
+  Heartbeats button; switching fades smoothly (opacity and transform only, so it
+  runs at the screen's refresh rate; reduced motion respected).
+- Every dialog fits the visible screen at any size and zoom: fixed header and
+  buttons, scrolling middle. Settings text readable in the light theme.
+
+**Security** (strict review, [ADR 0008](docs/adr/0008-hostile-input.md))
+- MQTT payloads over 64 KB dropped; deeply nested JSON no longer crashes the
+  handler; no forged log lines.
+- A node sending heartbeats faster than every 2 s is dropped as a flood.
+- 20 wrong API tokens from one address lock it out for a while.
+- CSV exports escape spreadsheet formulas (numbers kept).
+- Request bodies over 1 MB refused; live streams capped; version hidden from
+  anonymous callers; `Permissions-Policy`, `Cross-Origin-Opener-Policy` and
+  `Cross-Origin-Resource-Policy` headers; session secret file 0600.
+- CI actions pinned to commit SHAs.
+
+**Quality**
+- The browser UI test now checks that every dialog fits the screen at every
+  size and zoom, the heartbeat view, history charts for each period, and real
+  CSV downloads.
+
 ## 1.4.2 (2026-10-16)
 
 **Security**

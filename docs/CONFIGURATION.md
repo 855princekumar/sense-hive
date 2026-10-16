@@ -16,6 +16,8 @@ secret store, never in a compose file you commit.
 | `HOST` / `PORT` | `0.0.0.0` / `5000` | Listen address and port |
 | `SECRET_KEY` | random, saved next to the database | Signs session cookies; set it to share sessions across replicas |
 | `SQLITE_WAL` | `true` | WAL mode; set `false` on network filesystems (NFS, SMB) |
+| `MQTT_MAX_PAYLOAD_BYTES` | `65536` | Larger MQTT messages are dropped and counted (protects the disk) |
+| `SENSEHIVE_MAX_STREAMS` | `50` | Open live-update views (browser tabs) at once; more get 503 |
 | `SENSEHIVE_INGRESS_PROXY` | empty | Home Assistant add-on only: requests from this proxy address are already signed in by Home Assistant |
 
 ## MQTT broker (defaults for a new database)
@@ -63,6 +65,8 @@ Off unless `HEARTBEAT_MASTER_KEY` is set. See [Heartbeats](HEARTBEAT.md).
 | `HEARTBEAT_BROKER` / `HEARTBEAT_PORT` / `HEARTBEAT_TLS` | `broker.hivemq.com` / `8883` / `true` | Heartbeat broker (TLS, certificate verified) |
 | `HEARTBEAT_STALE_SECONDS` | `35` | No heartbeat for this long: `silent` |
 | `HEARTBEAT_KEEP_DAYS` | `30` | How long per-minute presence and events are kept |
+| `HEARTBEAT_BEATS_HOURS` | `48` | How long every single heartbeat is kept (charts up to 1 day, CSV); `0` keeps none. About 0.35 MB per node per day (0.7 MB for 48 hours, measured) |
+| `HEARTBEAT_MIN_SPACING` | `2` | Seconds a node must leave between heartbeats; faster ones are dropped as a flood |
 
 Generate the secrets with:
 

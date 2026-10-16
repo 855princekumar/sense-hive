@@ -1,5 +1,5 @@
         const { useState, useEffect, useRef } = React;
-        
+
         const Icons = {
             Settings: (props) => (
                 <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -94,6 +94,33 @@
                 window.addEventListener('keydown', onKey);
                 return () => window.removeEventListener('keydown', onKey);
             }, []);
+            // Two views, chosen with the cards at the top: topic logs and heartbeats (?view=heartbeats)
+            const [view, setView] = useState(() => {
+                try { return new URLSearchParams(window.location.search).get('view') === 'heartbeats' ? 'heartbeats' : 'topics'; }
+                catch (e) { return 'topics'; }
+            });
+            const [leaving, setLeaving] = useState(false);
+            const [hbSummary, setHbSummary] = useState(null);
+            const switchView = (next) => {
+                if (next === view || leaving) return;
+                setLeaving(true);                                    // fade out, then swap and fade in
+                setTimeout(() => {
+                    setView(next);
+                    setLeaving(false);
+                    try { window.history.replaceState(null, '', next === 'heartbeats' ? '?view=heartbeats' : window.location.pathname); } catch (e) { /* ignore */ }
+                }, 140);
+            };
+            useEffect(() => {
+                const load = () => fetch('api/heartbeat/nodes').then((r) => r.ok ? r.json() : null).then((d) => {
+                    if (!d) return;
+                    const c = { enabled: d.enabled, total: d.nodes.length, online: 0, silent: 0, offline: 0 };
+                    d.nodes.forEach((n) => { c[n.status] = (c[n.status] || 0) + 1; });
+                    setHbSummary(c);
+                }).catch(() => {});
+                load();
+                const t = setInterval(load, 15000);
+                return () => clearInterval(t);
+            }, []);
             const [formError, setFormError] = useState('');
             const [stats, setStats] = useState(null);
             const [filterTag, setFilterTag] = useState('all');
@@ -145,7 +172,7 @@
                 }
 
                 const evtSource = new EventSource('stream');
-                
+
                 evtSource.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
@@ -402,17 +429,17 @@
 
             const deleteNode = async (nodeId, topic) => {
                 const exportFirst = window.confirm('Do you want to export data before deleting?');
-                
+
                 if (exportFirst) {
                     await exportData(nodeId, topic);
                 }
-                
+
                 const confirmDelete = window.confirm(
                     exportFirst 
                         ? 'Node data exported. Confirm deletion?' 
                         : 'Node will be deleted and data will be lost. Continue?'
                 );
-                
+
                 if (confirmDelete) {
                     try {
                         await fetch(`api/nodes/${nodeId}`, { method: 'DELETE' });
@@ -446,7 +473,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(brokerConfig)
                     });
-                    
+
                     if (res.ok) {
                         setShowSettings(false);
                         alert('Settings saved successfully!');
@@ -465,7 +492,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(brokerConfig)
                     });
-                    
+
                     const data = await res.json();
                     alert(data.success ? 'Connection successful!' : `Failed: ${data.error}`);
                 } catch (e) {
@@ -581,12 +608,6 @@
                                     <span className="hidden sm:inline">Add Node</span>
                                 </button>
 
-                                <a id="heartbeatsLink" href="heartbeats" title="Heartbeats"
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap border ${borderClass} ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition`}>
-                                    <Icons.CheckCircle className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Heartbeats</span>
-                                </a>
-
                                 <button onClick={() => setShowSettings(true)} title="Settings"
                                     className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition`}>
                                     <Icons.Settings className="w-5 h-5" />
@@ -607,6 +628,58 @@
                     </nav>
 
                     <div className="max-w-7xl mx-auto p-4 sm:p-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6" role="tablist" aria-label="Views">
+                            <button id="viewTopics" role="tab" aria-selected={view === 'topics'} onClick={() => switchView('topics')}
+                                className={`sh-view-card sh-fade-up text-left ${cardBg} border rounded-xl p-4 sm:p-5 min-w-0 ${view === 'topics' ? 'border-blue-600 ring-2 ring-blue-500 ring-opacity-30' : borderClass}`}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center flex-shrink-0">
+                                        <Icons.Activity className="w-5 h-5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="font-semibold text-lg leading-tight">Topic logs</div>
+                                        <div className="text-xs text-gray-500">MQTT topics you add, live</div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-sm">
+                                    <span className="whitespace-nowrap"><b>{nodes.length}</b> topics</span>
+                                    <span className="whitespace-nowrap"><b>{nodes.reduce((sum, n) => sum + (n.entry_count || 0), 0).toLocaleString()}</b> entries</span>
+                                    {stats && <span className="flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-green-500" />{stats.topics.active} active</span>}
+                                    {stats && <span className="flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-red-500" />{stats.topics.inactive} inactive</span>}
+                                </div>
+                            </button>
+                            <button id="viewHeartbeats" role="tab" aria-selected={view === 'heartbeats'} onClick={() => switchView('heartbeats')}
+                                style={{ animationDelay: '70ms' }}
+                                className={`sh-view-card sh-fade-up text-left ${cardBg} border rounded-xl p-4 sm:p-5 min-w-0 ${view === 'heartbeats' ? 'border-blue-600 ring-2 ring-blue-500 ring-opacity-30' : borderClass}`}>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-green-500 text-white flex items-center justify-center flex-shrink-0">
+                                        <Icons.CheckCircle className="w-5 h-5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="font-semibold text-lg leading-tight">Heartbeats</div>
+                                        <div className="text-xs text-gray-500">Edge nodes, found by themselves</div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-sm">
+                                    {!hbSummary ? <span className="text-gray-500">Loading...</span> : !hbSummary.enabled ? (
+                                        <span className="text-gray-500">Receiver off</span>
+                                    ) : (
+                                        <>
+                                            <span className="whitespace-nowrap"><b>{hbSummary.total}</b> nodes</span>
+                                            <span className="flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-green-500" />{hbSummary.online} online</span>
+                                            <span className="flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-yellow-500" />{hbSummary.silent} silent</span>
+                                            <span className="flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-red-500" />{hbSummary.offline} offline</span>
+                                        </>
+                                    )}
+                                </div>
+                            </button>
+                        </div>
+
+                        <div key={view} className={`sh-view sh-fade-up ${leaving ? 'is-leaving' : ''}`}>
+                        {view === 'heartbeats' ? (
+                            window.SenseHiveHeartbeats
+                                ? React.createElement(window.SenseHiveHeartbeats, { darkMode, cardBg, borderClass })
+                                : <div className="text-center py-16 text-gray-500">The heartbeats view did not load.</div>
+                        ) : (<>
                         {nodes.length > 0 && (
                             <div className={`sh-bar ${cardBg} border ${borderClass} rounded-xl px-4 py-3 mb-6 flex flex-wrap items-center gap-3 text-sm`}>
                                 <div className="flex flex-wrap items-center gap-3 mr-auto">
@@ -746,13 +819,15 @@
                             </div>
                             </div>
                         ))}
+                        </>)}
+                        </div>
                     </div>
 
                     {showAddNode && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-                            <div className={`sh-modal ${cardBg} rounded-xl p-5 sm:p-6 max-w-md w-full my-8 min-w-0`} role="dialog" aria-modal="true">
-                                <h2 className="text-2xl font-bold mb-4">{editingNodeId ? 'Edit Node' : 'Add New Node'}</h2>
-                                <div className="space-y-3">
+                        <div className="sh-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+                            <div className={`sh-modal ${cardBg} rounded-xl max-w-md w-full min-w-0`} role="dialog" aria-modal="true">
+                                <h2 className="text-2xl font-bold px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex-shrink-0">{editingNodeId ? 'Edit Node' : 'Add New Node'}</h2>
+                                <div className="sh-modal-body space-y-3 px-5 sm:px-6 py-1">
                                     <label className="block text-xs text-gray-500">
                                         MQTT Topic *
                                         <input
@@ -826,7 +901,7 @@
                                     )}
                                     {formError && <p className="text-sm text-red-400">{formError}</p>}
                                 </div>
-                                <div className="flex gap-3 mt-6">
+                                <div className="flex gap-3 px-5 sm:px-6 py-4 flex-shrink-0">
                                     <button
                                         onClick={saveNode}
                                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
@@ -845,11 +920,10 @@
                     )}
 
                     {showSettings && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-                            <div className={`sh-modal ${cardBg} rounded-xl p-5 sm:p-6 max-w-md w-full my-8 min-w-0`} role="dialog" aria-modal="true">
-                                <h2 className="text-2xl font-bold mb-6">Settings</h2>
-                                
-                                <div className="space-y-6">
+                        <div className="sh-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+                            <div className={`sh-modal ${cardBg} rounded-xl max-w-md w-full min-w-0`} role="dialog" aria-modal="true">
+                                <h2 className="text-2xl font-bold px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex-shrink-0">Settings</h2>
+                                <div className="sh-modal-body space-y-6 px-5 sm:px-6 py-1">
                                     <div>
                                         <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                                             <Icons.Activity className="w-5 h-5" />
@@ -887,22 +961,22 @@
                                         </div>
                                         {/* Public Broker Defaults Info */}
 <div className={`${darkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'} border rounded-lg p-4`}>
-  <p className="text-sm font-semibold mb-2 text-blue-400">
+  <p className={`text-sm font-semibold mb-2 ${darkMode ? 'text-blue-400' : 'text-blue-700'}`}>
     Default Public Broker (HiveMQ) - Quick Switch Info
   </p>
 
-  <div className="text-xs space-y-1 text-gray-400">
+  <div className="text-xs space-y-1 text-gray-500">
     <div className="flex justify-between">
       <span>Host:</span>
-      <span className="font-mono text-gray-200">broker.hivemq.com</span>
+      <span className={`font-mono ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>broker.hivemq.com</span>
     </div>
     <div className="flex justify-between">
       <span>TCP Port:</span>
-      <span className="font-mono text-gray-200">1883</span>
+      <span className={`font-mono ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>1883</span>
     </div>
     <div className="flex justify-between">
       <span>TLS TCP Port:</span>
-      <span className="font-mono text-gray-200">8883</span>
+      <span className={`font-mono ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>8883</span>
     </div>
   </div>
 
@@ -973,17 +1047,17 @@
                                         </h3>
                                         <button
                                             onClick={() => setShowPasswordChange(true)}
-                                            className="w-full bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg transition"
+                                            className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition"
                                         >
                                             Change Password
                                         </button>
                                     </div>
                                 </div>
 
-                                <div className={`flex gap-3 mt-6 pt-6 border-t ${borderClass}`}>
+                                <div className={`flex flex-wrap gap-2 px-5 sm:px-6 py-4 border-t ${borderClass} flex-shrink-0`}>
                                     <button
                                         onClick={testBroker}
-                                        className="flex-1 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition"
+                                        className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition whitespace-nowrap"
                                     >
                                         Test Connection
                                     </button>
@@ -1005,10 +1079,10 @@
                     )}
 
                     {showPasswordChange && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className={`sh-modal ${cardBg} rounded-xl p-5 sm:p-6 max-w-md w-full min-w-0`} role="dialog" aria-modal="true">
-                                <h2 className="text-2xl font-bold mb-4">Change Password</h2>
-                                <div className="space-y-4">
+                        <div className="sh-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+                            <div className={`sh-modal ${cardBg} rounded-xl max-w-md w-full min-w-0`} role="dialog" aria-modal="true">
+                                <h2 className="text-2xl font-bold px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex-shrink-0">Change Password</h2>
+                                <div className="sh-modal-body space-y-4 px-5 sm:px-6 py-1">
                                     <input
                                         type="password"
                                         value={passwordData.current}
@@ -1031,7 +1105,7 @@
                                         className={`w-full px-4 py-2 rounded-lg border ${borderClass} ${darkMode ? 'bg-gray-700' : 'bg-white'}`}
                                     />
                                 </div>
-                                <div className="flex gap-3 mt-6">
+                                <div className="flex gap-3 px-5 sm:px-6 py-4 flex-shrink-0">
                                     <button
                                         onClick={changePassword}
                                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
@@ -1053,9 +1127,9 @@
                     )}
 
                     {showDetails && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className={`sh-modal ${cardBg} rounded-xl p-5 sm:p-6 max-w-4xl w-full max-h-[85vh] overflow-y-auto min-w-0`} role="dialog" aria-modal="true">
-                                <div className="flex justify-between items-center mb-4">
+                        <div className="sh-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+                            <div className={`sh-modal ${cardBg} rounded-xl max-w-4xl w-full min-w-0`} role="dialog" aria-modal="true">
+                                <div className="flex justify-between items-center gap-3 px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex-shrink-0">
                                     <h2 className="text-2xl font-bold">History - Last 50 Values</h2>
                                     <button
                                         onClick={() => setShowDetails(null)}
@@ -1064,7 +1138,7 @@
                                         <Icons.XCircle className="w-6 h-6" />
                                     </button>
                                 </div>
-                                <div className="space-y-3">
+                                <div className="sh-modal-body space-y-3 px-5 sm:px-6 pb-5">
                                     {showDetails.history?.map((entry, idx) => (
                                         <div key={idx} className={`${darkMode ? 'bg-gray-900' : 'bg-gray-50'} rounded-lg p-4 payload-box`}>
                                             <div className="text-xs text-gray-500 mb-2">{new Date(entry.timestamp).toLocaleString()}</div>

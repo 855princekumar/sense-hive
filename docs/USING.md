@@ -19,8 +19,18 @@ contain double quotes or control characters and is at most 512 characters long.
 
 ## The dashboard
 
+Two cards at the top choose what you see, with a short fade between them:
+
+- **Topic logs**: the MQTT topics you add, with topic and entry counts and how
+  many are active.
+- **Heartbeats**: edge nodes running the heartbeat agent, found by themselves,
+  with online, silent and offline counts. See [Heartbeats](HEARTBEAT.md#heartbeat-history-charts-and-csv-export).
+
+The address follows the choice (`?view=heartbeats`), so a bookmark opens the
+right view.
+
 - **Top bar:** broker connection, online/offline counts of nodes and topics
-  (wide screens), **Add Node**, **Heartbeats**, **Settings**, light/dark theme
+  (wide screens), **Add Node**, **Settings**, light/dark theme
   (remembered in this browser) and **Sign out**. On a phone the buttons become
   icons and wrap onto a second line.
 - **Summary bar:** topics, nodes, stored entries and database size; filter by
@@ -61,13 +71,15 @@ every stored entry of the topic.
   **Run cleanup now**.
 - **Change Password.**
 
-## Heartbeats page
+## Heartbeats view
 
-**Heartbeats** lists every node running the
+The **Heartbeats** card lists every node running the
 [heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service):
 `online`, `offline` (its last will arrived) or `silent` (nothing heard), with
 the last heartbeat, how long it has been in that state, the last will time and
-the agent version. See [Heartbeats and EdgeShell](HEARTBEAT.md).
+the agent version, with a history chart per node (1 minute to 30 days) and
+CSV export for one, the selected or all nodes. See
+[Heartbeats](HEARTBEAT.md#heartbeat-history-charts-and-csv-export).
 
 ![Heartbeats](../assets/heartbeats.png)
 

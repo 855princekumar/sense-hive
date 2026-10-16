@@ -1,6 +1,7 @@
 """Sign-in hardening: retries are limited, passwords are salted and slow
 (old ones upgraded), cross-site changes are refused, cookies are safe."""
 import hashlib
+import os
 
 import pytest
 
@@ -114,3 +115,49 @@ def test_a_quote_in_a_table_name_cannot_end_the_identifier(sh):
 
 def test_ordinary_topics_keep_their_table_names(sh):
     assert sh.table_name_for('plant/line-1/+/temp/#') == 'plant_line-1_plus_temp_wildcard'
+
+
+def test_csv_cells_keep_numbers_but_not_formulas(sh):
+    import heartbeat
+    for cell in (sh.csv_cell, heartbeat.csv_cell):
+        assert cell('-12.5') == '-12.5' and cell('+3') == '+3' and cell('42') == '42'
+        assert cell('=cmd|calc') == "'=cmd|calc" and cell('@SUM(A1)') == "'@SUM(A1)" and cell('-x') == "'-x"
+        assert cell(None) == ''
+
+
+def test_an_oversized_or_deeply_nested_payload_cannot_hurt(sh, add_topic, publish, client):
+    add_topic('big/one')
+    publish('big/one', 'x' * (sh.MAX_PAYLOAD_BYTES + 1))
+    assert sh.dropped_payloads == 1
+    publish('big/one', '[' * 20000 + ']' * 20000)                   # would blow the parser's stack
+    nodes = client.get('/api/nodes').get_json()
+    assert nodes[0]['entry_count'] == 1                                # kept as text, not lost, no crash
+
+
+def test_huge_request_bodies_are_refused(client):
+    r = client.post('/api/nodes', data='x' * (2 * 1024 * 1024), content_type='application/json')
+    assert r.status_code == 413
+
+
+def test_browser_security_headers(sh):
+    r = sh.app.test_client().get('/login')
+    assert r.headers['Permissions-Policy'].startswith('camera=()')
+    assert r.headers['Cross-Origin-Opener-Policy'] == 'same-origin'
+    assert r.headers['Cross-Origin-Resource-Policy'] == 'same-origin'
+
+
+@pytest.mark.skipif(os.name == 'nt', reason='POSIX file modes')
+def test_the_generated_session_secret_is_private(make_app, tmp_path):
+    make_app(db_file=tmp_path / "d.db")
+    assert (os.stat(tmp_path / 'secret_key').st_mode & 0o777) == 0o600
+
+
+def test_live_streams_are_capped(make_app):
+    sh = make_app(SENSEHIVE_MAX_STREAMS='1')
+    c1, c2 = sh.app.test_client(), sh.app.test_client()
+    for c in (c1, c2):
+        c.post('/api/login', json={'username': 'admin', 'password': 'admin123'})
+    first = c1.get('/stream', buffered=False)
+    assert first.status_code == 200
+    assert c2.get('/stream', buffered=False).status_code == 503
+    first.close()
