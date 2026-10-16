@@ -406,6 +406,11 @@ def test_broker_test_reports_failure(client):
     assert res['success'] is False and res['error']
 
 
+def test_log_lines_cannot_be_forged(sh):
+    assert sh.log_safe('evil\nINFO admin signed in\r\x1b[31m') == 'evil INFO admin signed in ?[31m'
+    assert len(sh.log_safe('x' * 1000)) == 200
+
+
 def test_broker_errors_are_fixed_messages_not_exception_text(sh):
     import socket
     assert sh.broker_error_text(ConnectionRefusedError(111, 'secret detail')).startswith('Connection refused')
