@@ -32,7 +32,8 @@ under **Settings**.
 | Tag | Description |
 | --- | ----------- |
 | `latest` | Latest release, multi-arch (amd64 + arm64) |
-| `1.5.0`, `1.5` | SenseHive 1.5.0, multi-arch |
+| `1.6.0`, `1.6` | SenseHive 1.6.0, multi-arch |
+| `1.5.0`, `1.5` | SenseHive 1.5.0 |
 | `1.4.2`, `1.4` | SenseHive 1.4.2 |
 | `1.4.1` | SenseHive 1.4.1 |
 | `1.4.0` | SenseHive 1.4.0 |
@@ -59,6 +60,12 @@ Apple Silicon). Docker picks the right architecture automatically.
 | Security | Login-protected UI and API, no CDN and a strict Content Security Policy, SQL-safe topic names, salted slow password hashes, lockout after repeated failed sign-ins, CSRF protection, HttpOnly cookies, persistent random session secret, no data baked into the image |
 | Operations | `/api/health` and `/api/status` endpoints, Docker HEALTHCHECK, timezone-aware timestamps |
 | Heartbeats (1.2) | Optional receiver for the [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service): encrypted, authenticated heartbeats and LWT over a public broker, `/heartbeats` page, read-only API. Off unless `HEARTBEAT_MASTER_KEY` is set |
+
+## What's new in 1.6.0
+
+- An (i) guide on the Topic logs and Heartbeats cards: what each view is for and how to use it
+- Filter topics and heartbeat nodes by status (online, offline, silent or no last will)
+- A secure deployment guide: one domain on 443 through a TLS proxy, the app's port never exposed
 
 ## What's new in 1.5.0
 
