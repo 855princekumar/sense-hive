@@ -1,99 +1,269 @@
-# Heartbeats and EdgeShell
+# Heartbeats, the read API and EdgeShell
 
-SenseHive can receive **encrypted, authenticated heartbeats** from edge nodes
-and tell another system, such as [EdgeShell](https://github.com/855princekumar/edgeshell),
-whether each node is up, without that system needing a VPN path to the node.
+SenseHive does two jobs, side by side, in one container:
 
-```
- edge node                          public MQTT broker (TLS)               SenseHive
- ┌───────────────────────┐          ┌───────────────────┐          ┌──────────────────────┐
- │ heartbeat agent        │──AES-GCM─▶ rotating topics    │──────────▶ receiver: verify,     │
- │ (systemd, own user)    │  every   │ (change every      │          │ track, store         │
- │ last will on drop      │  10 s    │  10 minutes)       │          │ /heartbeats  /api/.. │
- └───────────────────────┘          └───────────────────┘          └──────────┬───────────┘
-                                                                               │ read-only API
-                                                                     ┌─────────▼───────────┐
-                                                                     │ EdgeShell: badges,   │
-                                                                     │ uptime, SLA          │
-                                                                     └─────────────────────┘
-```
+![Two ways SenseHive collects data](assets/sensehive-overview.svg)
 
-## What travels and what does not
+1. **MQTT data logger** (the classic SenseHive): point it at your broker, **Add
+   Node** for each topic (wildcards work), and watch the values on the
+   dashboard, with history, CSV export and LWT status. See
+   [Using SenseHive](USING.md).
+2. **Heartbeat receiver** (since 1.2): edge nodes running the
+   [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service)
+   send encrypted heartbeats over a **public** broker. SenseHive finds them by
+   itself, shows them on the **Heartbeats** page and serves them through a
+   **read-only API** that EdgeShell, Grafana, Node-RED, Home Assistant or a
+   script can read.
 
-- Each message carries only the node's short ID, a counter, a session number,
-  the time and the agent version, sealed with **AES-256-GCM** under that node's
-  own key. No hostnames, addresses, credentials or sensor data.
-- Topics are derived from the fleet key and change every ten minutes, so a
-  stranger on the public broker cannot find or follow a fleet.
-- SenseHive drops (and counts) anything it cannot verify: unknown nodes,
-  replays, old or future timestamps, and messages sealed with another key.
+The two are independent: the logger uses the broker and topics you set in
+**Settings**; the receiver uses its own TLS connection to the heartbeat broker
+and its own tables. Turning one on or off never affects the other.
 
-The protocol is shared by the agent, SenseHive and EdgeShell
-(`heartbeat_protocol.py`) and pinned by the same test vectors in all three.
+## Contents
 
-## Turning it on
+1. [How the heartbeat works](#how-the-heartbeat-works)
+2. [What the agent does on a node](#what-the-agent-does-on-a-node)
+3. [How SenseHive finds nodes by itself](#how-sensehive-finds-nodes-by-itself)
+4. [Node states](#node-states)
+5. [Turning the receiver on](#turning-the-receiver-on)
+6. [The read API](#the-read-api)
+7. [Reading heartbeats from other tools](#reading-heartbeats-from-other-tools)
+8. [With EdgeShell](#with-edgeshell)
+9. [Security](#security)
+10. [Troubleshooting](#troubleshooting)
 
-1. Generate a fleet master key and an API token (see
-   [Configuration](CONFIGURATION.md#heartbeat-receiver)).
-2. Give SenseHive both, in `.env`:
+## How the heartbeat works
 
-   ```bash
-   HEARTBEAT_MASTER_KEY=<64 hex characters>
-   HEARTBEAT_API_TOKEN=<32+ characters>
-   ```
+![How the MQTT heartbeat works](assets/heartbeat-flow.svg)
 
-3. Restart. The log says `Heartbeat receiver on`; **Heartbeats** shows
-   `connected to the heartbeat broker`.
+One 32-byte **master key** defines a fleet. Everything else is derived from it
+(the code is `heartbeat_protocol.py`, the same file in the agent, SenseHive and
+EdgeShell, pinned by shared test vectors):
 
-## Installing the agent on nodes
+| Derived value | How | Who holds it |
+| ------------- | --- | ------------ |
+| Key id of a node | `HMAC(master, "kid|" + name)`, 8 bytes | the node, in the clear in every message |
+| Node key | `HMAC(master, "node|" + key id)` | that node only |
+| Topic key | `HMAC(master, "topic")` | every node; only lets it compute topics |
+| Topic | `HMAC(topic key, window)`, two random-looking levels | changes every 10 minutes |
+| Master key | 32 random bytes | **SenseHive and EdgeShell only, never a node** |
 
-The agent lives in
-[mqtt-heartbeat-service](https://github.com/855princekumar/mqtt-heartbeat-service).
-It installs to `/opt/edgeshell-heartbeat`, runs as its own unprivileged user
-under systemd, and holds only that node's derived key (not the master key).
-EdgeShell installs and updates it for you from **Fleet Setup**; by hand:
+## What the agent does on a node
 
-```bash
-sudo bash install.sh agent.env      # install or update (agent.env: the node's identity and key)
-sudo bash install.sh --uninstall    # remove everything
-```
+The agent lives in `/opt/edgeshell-heartbeat` and runs under systemd as its own
+unprivileged user (or as a background process where there is no systemd).
 
-See the agent's README for the contents of `agent.env` and the hot-reloaded
-`config.yaml`.
+1. **Starts** with its identity from `agent.env` (name, key id, node key, topic
+   key; mode 0640) and its settings from `config.yaml` (broker, port, TLS,
+   interval; no secrets).
+2. **Connects** to the broker over TLS (certificate verified) with a random
+   client id, and registers a **last will**: an encrypted `lwt` message that
+   the *broker* publishes if the agent's connection drops. The will carries
+   the session (the connect time).
+3. **Sends `birth`** as soon as the connection is up.
+4. **Sends `hb` every `interval` seconds** (10 by default), each with the time
+   and a counter.
+5. **Moves to the next topic** when the 10-minute window changes: it
+   reconnects with a fresh last will on the new topic.
+6. **Reloads `config.yaml`** on the fly: change the broker or interval on
+   every node at once (EdgeShell pushes it), no restart.
+
+Every message is `version | key id | nonce | AES-256-GCM ciphertext`. The
+ciphertext holds only `{name, kind, time, session, counter, agent version}`:
+no addresses, credentials, metrics or sensor data. The version, key id and
+topic are authenticated, so a message cannot be altered or moved to another
+topic or node.
+
+## How SenseHive finds nodes by itself
+
+There is **no list of nodes in SenseHive** and nothing to add per node:
+
+1. From the master key, SenseHive computes the **previous, current and next**
+   topics (allowing for clock drift and late wills), subscribes to them, and
+   moves along as the windows change.
+2. For each message it reads the **key id** from the header, **derives that
+   node's key** from the master key, and decrypts. Only a node provisioned from
+   the same master key can produce a message that decrypts.
+3. It checks that the **name inside matches the key id**, that the time is
+   within 2 minutes, newer than the node's last message, and (for a will) that
+   it belongs to the current session.
+4. The node is **recorded on its first valid heartbeat**: name, state, agent
+   version, the minutes it was online, and every change of state.
+
+Anything else on the broker (other people's traffic, replays, forgeries,
+messages for another fleet) is dropped silently and counted in `rejected`.
+
+So adding a node is only: provision it (EdgeShell's **Fleet Setup** does it, or
+generate its `agent.env`) and install the agent. It appears on the Heartbeats
+page within seconds.
 
 ## Node states
 
-| State | Meaning |
-| ----- | ------- |
-| `online` | A verified heartbeat in the last `HEARTBEAT_STALE_SECONDS` (35) |
-| `offline` | The node's last will arrived: its connection dropped |
-| `silent` | Neither: usually the broker or the internet path, not the node |
+| State | Meaning | Typical cause |
+| ----- | ------- | ------------- |
+| `online` | A verified heartbeat in the last `HEARTBEAT_STALE_SECONDS` (35) | the node is up |
+| `offline` | Its last will arrived for the current session | the node lost power or network, or the agent stopped |
+| `silent` | No heartbeat and no will | the broker or the internet path, not the node |
 
-Every change is kept as an event; per-minute presence is kept for
-`HEARTBEAT_KEEP_DAYS` (30) for uptime and SLA figures.
+Each change is stored as an event; the minutes with a heartbeat are stored for
+`HEARTBEAT_KEEP_DAYS` (30) to measure uptime exactly.
 
-## Read-only API
+## Turning the receiver on
 
-`GET` only, with `Authorization: Bearer <HEARTBEAT_API_TOKEN>` or a signed-in
-session.
+```bash
+# .env next to docker-compose.yml (never commit it)
+HEARTBEAT_MASTER_KEY=<64 hex characters>     # python -c "import secrets; print(secrets.token_hex(32))"
+HEARTBEAT_API_TOKEN=<32+ characters>          # python -c "import secrets; print(secrets.token_urlsafe(32))"
+# optional, these are the defaults
+HEARTBEAT_BROKER=broker.hivemq.com
+HEARTBEAT_PORT=8883
+HEARTBEAT_TLS=true
+```
 
-| Endpoint | Returns |
-| -------- | ------- |
-| `/api/heartbeat/status` | receiver on, broker connected, nodes seen, rejected messages |
-| `/api/heartbeat/nodes` | per node: status, last heartbeat, since, last will time, agent version |
-| `/api/heartbeat/minutes?since=<unix>` | per node, the minutes with a verified heartbeat |
-| `/api/heartbeat/events?since=<unix>` | status changes, oldest first |
+Restart SenseHive. The log says `Heartbeat receiver on`, and the **Heartbeats**
+page says `connected to the heartbeat broker`. The MQTT logger keeps working
+exactly as before.
+
+## The read API
+
+`GET` only. Authenticate with `Authorization: Bearer <HEARTBEAT_API_TOKEN>`
+(for tools) or a signed-in browser session. Times are Unix seconds.
+
+### `GET /api/heartbeat/status`
+
+```json
+{"enabled": true, "connected": true, "rejected": 12, "nodes": 4}
+```
+
+`rejected` counts messages dropped as not authentic, stale or replayed.
+
+### `GET /api/heartbeat/nodes`
+
+```json
+{
+  "enabled": true,
+  "connected": true,
+  "nodes": [
+    {"name": "pi-node-01", "status": "online", "last_seen": 1760610012.4,
+     "since": 1760541203.0, "lwt_at": null, "agent_version": "1.1.0"},
+    {"name": "gateway-02", "status": "offline", "last_seen": 1760609100.9,
+     "since": 1760609130.2, "lwt_at": 1760609130.2, "agent_version": "1.1.0"}
+  ]
+}
+```
+
+`since` is when the node entered its current state; `lwt_at` is when its last
+will arrived.
+
+### `GET /api/heartbeat/minutes?since=<unix>`
+
+```json
+{"since": 1760606400, "minutes": {"pi-node-01": [1760606400, 1760606460, 1760606520]}}
+```
+
+The start of every minute in which each node sent a verified heartbeat (at
+most `HEARTBEAT_KEEP_DAYS` back). Uptime over a period is the number of minutes
+listed divided by the minutes in the period.
+
+### `GET /api/heartbeat/events?since=<unix>`
+
+```json
+{"events": [{"id": 41, "name": "gateway-02", "status": "offline", "at": 1760609130.2}]}
+```
+
+State changes, oldest first, up to 1000 per call: pass the last `at` you saw
+to page forward. Good for alerts.
+
+Errors: `401 {"error": "Authentication required"}` without a valid token or
+session. When the receiver is off, `enabled` is `false` and the lists are
+empty.
+
+## Reading heartbeats from other tools
+
+**Where to call it.** A stand-alone SenseHive serves the API on its own port
+(`http://<host>:5000/api/heartbeat/...`). In the EdgeShell stack SenseHive has
+**no published port** and its public path `/sensehive/` is for signed-in
+administrators only, so tools call it from inside the stack's network
+(`http://sensehive:5000/...`), or you publish it on a private address only,
+for example a compose override:
+
+```yaml
+services:
+  sensehive:
+    ports:
+      - "127.0.0.1:5001:5000"     # this host only; or your Tailscale IP, never 0.0.0.0
+```
+
+**curl**
+
+```bash
+curl -s -H "Authorization: Bearer $HEARTBEAT_API_TOKEN" http://localhost:5000/api/heartbeat/nodes
+```
+
+**Python**
+
+```python
+import os, requests
+r = requests.get('http://localhost:5000/api/heartbeat/nodes',
+                 headers={'Authorization': f"Bearer {os.environ['HEARTBEAT_API_TOKEN']}"}, timeout=5)
+down = [n['name'] for n in r.json()['nodes'] if n['status'] != 'online']
+print('not online:', down or 'none')
+```
+
+**Node-RED:** an *inject* node every 30 s, then an *http request* node (GET,
+return a parsed JSON object, header `Authorization: Bearer <token>`), then a
+*split* on `msg.payload.nodes` and a *switch* on `msg.payload.status`.
+
+**Home Assistant** (`configuration.yaml`):
+
+```yaml
+rest:
+  - resource: http://sensehive.local:5000/api/heartbeat/nodes
+    headers:
+      Authorization: !secret sensehive_heartbeat_token
+    scan_interval: 30
+    sensor:
+      - name: Edge nodes online
+        value_template: "{{ value_json.nodes | selectattr('status', 'eq', 'online') | list | count }}"
+```
+
+**Grafana:** the *Infinity* data source, URL
+`/api/heartbeat/nodes`, root selector `nodes`, with the bearer token as a
+header; or `/api/heartbeat/minutes` for uptime panels.
+
+Keep the token in the tool's secret store, not in a dashboard JSON or a flow
+you share.
 
 ## With EdgeShell
 
-EdgeShell runs SenseHive next to itself and:
+EdgeShell runs SenseHive in its Compose stack and:
 
-- polls the API with the token and shows heartbeat badges, uptime and SLA on
-  its node cards;
-- installs the agent on nodes (**Fleet Setup**), giving each its own key;
-- links admins to SenseHive under `/sensehive/` behind its own sign-in gate:
-  a click from the EdgeShell admin panel opens it; a direct visit asks for a
-  fresh 2FA code first. SenseHive keeps its own password and lockout on top.
+- gives it the master key and API token from its own `.env`
+  (`HEARTBEAT_MASTER_KEY`, `SENSEHIVE_API_TOKEN`);
+- installs and updates the agent from **Fleet Setup**, giving every node only
+  its own `agent.env`;
+- polls the API and shows heartbeat badges, uptime and SLA on its node cards;
+  a node counts as up when SSH reaches it **or** a verified heartbeat arrived;
+- links administrators to SenseHive at `/sensehive/` behind its sign-in and a
+  fresh 2FA code. SenseHive keeps its own password and lockout on top.
 
-For that setup SenseHive runs with the cookie settings shown in
-[Configuration](CONFIGURATION.md#example-env-behind-https-on-a-sub-path).
+## Security
+
+| Threat | Protection |
+| ------ | ---------- |
+| Reading what nodes say on a public broker | AES-256-GCM; the plaintext is only name, time, counter, kind, version |
+| Finding or following the fleet | Topics look random and change every 10 minutes; random client ids |
+| Faking a node | Each node has its own key; a stolen node key speaks only for that node |
+| Replays and old wills | Time within 2 minutes, strictly increasing; wills bound to the session |
+| Reading the API | Bearer token (32+ characters, compared in constant time) or a signed-in session; GET only |
+| The master key | Only in SenseHive's and EdgeShell's environment, never on a node, never in the repository |
+
+## Troubleshooting
+
+| Symptom | Check |
+| ------- | ----- |
+| Page says `receiver off` | `HEARTBEAT_MASTER_KEY` is not set or not 64 hex characters |
+| `not connected to the heartbeat broker` | outbound TCP 8883 from SenseHive; `HEARTBEAT_BROKER` |
+| A node never appears | on the node: `systemctl status edgeshell-heartbeat` and `journalctl -u edgeshell-heartbeat`; its clock (NTP); it was provisioned with the same master key |
+| `rejected` keeps growing | someone else's traffic (normal on a public broker), or a node with a wrong key or a wrong clock |
+| API answers 401 | the token is missing, shorter than 32 characters, or different from `HEARTBEAT_API_TOKEN` |

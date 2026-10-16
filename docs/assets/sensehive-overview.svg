@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" font-family="Segoe UI,Roboto,Helvetica,Arial,sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">Two ways SenseHive collects data</title>
+  <desc id="desc">First, the MQTT data logger: devices publish to your MQTT broker, SenseHive subscribes to the topics you add and shows them on the dashboard with history, CSV export and LWT status. Second, the heartbeat receiver: edge nodes with the heartbeat agent publish encrypted heartbeats to a public broker; SenseHive finds them by itself from the master key, shows them on the heartbeats page and serves them through a read-only API.</desc>
+  <defs>
+    <marker id="ab" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#1a56db"/>
+    </marker>
+    <marker id="ao" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#d97706"/>
+    </marker>
+    <style>
+      .tt{font-size:15px;font-weight:700;fill:#0f172a}
+      .t{font-size:13px;font-weight:700;fill:#0f172a}
+      .lbl{font-size:11px;fill:#475569}
+      .mut{font-size:11px;fill:#64748b}
+      .lane{font-size:12.5px;font-weight:700}
+    </style>
+  </defs>
+  <rect width="1000" height="440" fill="#f8fafc"/>
+  <text x="30" y="34" class="tt" font-size="18">Two ways SenseHive collects data</text>
+  <text x="30" y="54" class="mut">Both run in the same SenseHive, side by side. Use either or both.</text>
+
+  <!-- one SenseHive -->
+  <rect x="500" y="70" width="240" height="300" rx="14" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="620" y="388" class="mut" text-anchor="middle" font-weight="700">one SenseHive container</text>
+
+  <!-- Lane 1 -->
+  <text x="30" y="90" class="lane" fill="#1a56db">1  MQTT data logger: the topics you add</text>
+  <rect x="30" y="100" width="200" height="96" rx="10" fill="#fff" stroke="#bfdbfe" stroke-width="1.5"/>
+  <text x="44" y="124" class="t">Your devices</text>
+  <text x="44" y="142" class="lbl">sensors, ESP32, PLC gateways,</text>
+  <text x="44" y="158" class="lbl">Node-RED flows, scripts</text>
+  <line x1="232" y1="148" x2="266" y2="148" stroke="#1a56db" stroke-width="2" marker-end="url(#ab)"/>
+  <rect x="270" y="100" width="200" height="96" rx="10" fill="#fff" stroke="#bfdbfe" stroke-width="1.5"/>
+  <text x="284" y="124" class="t">Your MQTT broker</text>
+  <text x="284" y="142" class="lbl">Mosquitto, HiveMQ, EMQX,</text>
+  <text x="284" y="158" class="lbl">local or public</text>
+  <line x1="472" y1="148" x2="506" y2="148" stroke="#1a56db" stroke-width="2" marker-end="url(#ab)"/>
+  <rect x="510" y="100" width="220" height="96" rx="10" fill="#eff6ff" stroke="#1a56db" stroke-width="1.5"/>
+  <text x="524" y="124" class="t">MQTT logger</text>
+  <text x="524" y="142" class="lbl">subscribes to the topics you add</text>
+  <text x="524" y="158" class="lbl">(Add Node; wildcards: sensors/#)</text>
+  <text x="524" y="174" class="lbl">a table per topic, live updates</text>
+  <line x1="732" y1="148" x2="766" y2="148" stroke="#1a56db" stroke-width="2" marker-end="url(#ab)"/>
+  <rect x="770" y="100" width="200" height="96" rx="10" fill="#fff" stroke="#bfdbfe" stroke-width="1.5"/>
+  <text x="784" y="124" class="t">Dashboard</text>
+  <text x="784" y="142" class="lbl">cards, last 50 values,</text>
+  <text x="784" y="158" class="lbl">CSV export, LWT status,</text>
+  <text x="784" y="174" class="lbl">tags, retention</text>
+
+  <!-- Lane 2 -->
+  <text x="30" y="244" class="lane" fill="#b45309">2  Heartbeat receiver: automatic, nothing to add</text>
+  <rect x="30" y="254" width="200" height="96" rx="10" fill="#fff" stroke="#fcd34d" stroke-width="1.5"/>
+  <text x="44" y="278" class="t">Edge nodes</text>
+  <text x="44" y="296" class="lbl">heartbeat agent on each,</text>
+  <text x="44" y="312" class="lbl">installed by EdgeShell</text>
+  <line x1="232" y1="302" x2="266" y2="302" stroke="#d97706" stroke-width="2" marker-end="url(#ao)"/>
+  <rect x="270" y="254" width="200" height="96" rx="10" fill="#fff" stroke="#fcd34d" stroke-width="1.5"/>
+  <text x="284" y="278" class="t">Public MQTT broker</text>
+  <text x="284" y="296" class="lbl">TLS 8883, encrypted messages,</text>
+  <text x="284" y="312" class="lbl">topics change every 10 min</text>
+  <line x1="472" y1="302" x2="506" y2="302" stroke="#d97706" stroke-width="2" marker-end="url(#ao)"/>
+  <rect x="510" y="254" width="220" height="96" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+  <text x="524" y="278" class="t">Heartbeat receiver</text>
+  <text x="524" y="296" class="lbl">finds the fleet's topics itself from</text>
+  <text x="524" y="312" class="lbl">HEARTBEAT_MASTER_KEY; a node</text>
+  <text x="524" y="328" class="lbl">appears on its first heartbeat</text>
+  <line x1="732" y1="302" x2="766" y2="302" stroke="#d97706" stroke-width="2" marker-end="url(#ao)"/>
+  <rect x="770" y="254" width="200" height="96" rx="10" fill="#fff" stroke="#fcd34d" stroke-width="1.5"/>
+  <text x="784" y="278" class="t">Page and read API</text>
+  <text x="784" y="296" class="lbl">online, offline, silent;</text>
+  <text x="784" y="312" class="lbl">read by EdgeShell, Grafana,</text>
+  <text x="784" y="328" class="lbl">Node-RED, scripts (token)</text>
+
+  <rect x="30" y="402" width="940" height="28" rx="8" fill="#0f172a"/>
+  <text x="46" y="421" font-size="11.5" fill="#e2e8f0"><tspan font-weight="700" fill="#fff">The logger</tspan> needs a broker and the topics you add. <tspan font-weight="700" fill="#fff">The receiver</tspan> needs only the master key. Both keep their data in SenseHive's one SQLite file.</text>
+</svg>

@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="SenseHive Banner"/>
 </p>
 
-![Release](https://img.shields.io/badge/release-v1.4.2-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white)
+![Release](https://img.shields.io/badge/release-v1.4.2-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-28%20MB%20idle%20%7C%2035%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
 
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
@@ -201,6 +201,14 @@ Screenshots are taken from a seeded test install by `tools/screenshots.py`
 
 ## Key Features
 
+SenseHive collects data in two ways, side by side: the **MQTT logger** for the
+topics you add, and the **heartbeat receiver**, which finds edge nodes by
+itself and serves their state through a read-only API.
+
+<p align="center">
+  <img src="docs/assets/sensehive-overview.svg" width="100%" alt="Two ways SenseHive collects data" />
+</p>
+
 | Category                   | Highlights                                                                         |
 | -------------------------- | ---------------------------------------------------------------------------------- |
 | **MQTT Data Ingestion**    | Compatible with any MQTT device · Public broker support · Topic-based subscription |
@@ -248,9 +256,29 @@ Existing v1.0 databases are migrated automatically on first start. Keep your `/a
 
 SenseHive can receive **encrypted, authenticated heartbeats** from edge nodes
 running the [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service),
-over a public broker, and serve their state read-only (used by
-[EdgeShell](https://github.com/855princekumar/edgeshell) for VPN-independent
-uptime and LWT status on its node cards).
+over a public broker, and serve their state read-only to
+[EdgeShell](https://github.com/855princekumar/edgeshell) (VPN-independent
+uptime and LWT status on its node cards) or **any other tool** that reads JSON
+(Grafana, Node-RED, Home Assistant, scripts).
+
+<p align="center">
+  <img src="docs/assets/heartbeat-flow.svg" width="100%" alt="How the MQTT heartbeat works" />
+</p>
+
+- **Nothing to set up per node.** Give SenseHive the fleet's master key and it
+  computes the fleet's rotating topics itself, derives each sender's key from
+  the key id in the message, and records a node on its **first valid
+  heartbeat**. There is no node list to maintain and no topic to add.
+- **The agent** for the nodes lives in its own repository,
+  [mqtt-heartbeat-service](https://github.com/855princekumar/mqtt-heartbeat-service),
+  with its architecture, lifecycle and a setup guide
+  ([docs/SETUP.md](https://github.com/855princekumar/mqtt-heartbeat-service/blob/main/docs/SETUP.md)).
+- **The MQTT logger keeps working as before**: add topics with **Add Node** and
+  watch them on the dashboard; the receiver uses its own connection and tables.
+
+The full guide, with how the agent works on a node, example API responses and
+recipes for curl, Python, Node-RED, Home Assistant and Grafana, is in
+[docs/HEARTBEAT.md](docs/HEARTBEAT.md).
 
 - **Off by default.** Set `HEARTBEAT_MASTER_KEY` (64 hex characters) to turn it
   on. Nothing else in SenseHive changes: it uses its own TLS connection to the
@@ -789,18 +817,26 @@ npm ci && npm run check                                 # built front end matche
 
 ## Performance Benchmarks
 
-Based on internal LAN testing with Docker deployment.
-Tested on: Raspberry Pi 5 (8GB) and x86 local system
+**Lightweight by design: about 28 MB of memory at idle and 35 MB with 500
+heartbeat nodes and 100 busy topics, in a 57 MB image.** Measured with
+SenseHive 1.4.2 (script in `tools/measure/`, full results in
+[docs/PERFORMANCE.md](docs/PERFORMANCE.md)):
 
-| Metric                | Value / Range              |
-|---------------------|---------------------------|
-| Ingestion Rate       | ~1k–3k msgs/min           |
-| Devices Supported    | ~20–50 devices            |
-| CPU Usage            | ~5–15% (Raspberry Pi 5)   |
-| Memory Usage         | ~80–150 MB                |
-| Dashboard Latency    | <1 second                 |
+| Scenario | CPU (one core) | Memory |
+| -------- | -------------- | ------ |
+| Idle, heartbeat receiver on, 100 topics subscribed | 0.04 % | 28 MB |
+| 500 heartbeat nodes (50 encrypted messages/s verified) | 8.7 % | 34 MB |
+| The same plus 100 topics logging 50 messages/s | 19 % | 35 MB |
 
-> Note: Values are indicative and may vary depending on workload and hardware.
+| Also measured | Value |
+| ------------- | ----- |
+| API response (500 nodes, 100 topics) | 2 to 8 ms p50, under 10 ms p95 |
+| Storage per logged message | about 270 bytes at most, including indexes |
+| Heartbeats refused in the run | 0 (all 500 nodes online) |
+| Docker image | 57 MB, amd64 and arm64 |
+
+Test machine: Intel Core i7-1185G7 laptop, Docker Desktop. Expect a few times
+the CPU share on a Raspberry Pi core; memory stays about the same.
 
 ---
 
