@@ -218,6 +218,31 @@ def layout(page):
     return page.evaluate(LAYOUT_JS)
 
 
+def read_text(path):
+    with open(path, encoding='utf-8') as fh:
+        return fh.read()
+
+
+def check_dialog(page, rep, tag, name, clicks, ranges=()):
+    """Open a dialog (click each selector in turn, first match), check it fits the
+    screen, for each period too, and that Escape closes it."""
+    for selector in clicks:
+        page.locator(selector).first.click()
+        page.wait_for_selector('.sh-modal')
+    settle(page)
+    issues = layout(page)
+    rep.check(f'{tag} {name} fits the screen', not issues, '; '.join(issues[:6]), page)
+    for r in ranges:                              # the chart and figures of each period fit too
+        page.click(f'.sh-modal [data-range="{r}"]')
+        page.wait_for_selector('.sh-modal svg', timeout=10000)
+        settle(page)
+        issues = layout(page)
+        rep.check(f'{tag} {name} {r} fits the screen', not issues, '; '.join(issues[:6]), page)
+    page.keyboard.press('Escape')
+    page.wait_for_timeout(250)
+    rep.check(f'{tag} {name} closes', page.locator('.sh-modal').count() == 0, '', page)
+
+
 def run_layout(pw, base, rep, configs, dark=False):
     for label, w, h, scale in configs:
         zoomed = label in ('laptop', 'desktop') and scale != 1
@@ -248,35 +273,14 @@ def run_layout(pw, base, rep, configs, dark=False):
         page.goto(base + '/')
         page.wait_for_selector('.sh-card')
 
-        def dialog(name, open_it, ranges=()):
-            open_it()
-            page.wait_for_selector('.sh-modal')
-            settle(page)
-            issues = layout(page)
-            rep.check(f'{tag} {name} fits the screen', not issues, '; '.join(issues[:6]), page)
-            for r in ranges:                      # the chart and figures of each period fit too
-                page.click(f'.sh-modal [data-range="{r}"]')
-                page.wait_for_selector('.sh-modal svg', timeout=10000)
-                settle(page)
-                issues = layout(page)
-                rep.check(f'{tag} {name} {r} fits the screen', not issues, '; '.join(issues[:6]), page)
-            page.keyboard.press('Escape')
-            page.wait_for_timeout(250)
-            rep.check(f'{tag} {name} closes', page.locator('.sh-modal').count() == 0, '', page)
-
-        dialog('settings dialog', lambda: page.click('[title="Settings"]'))
-        dialog('add-node dialog', lambda: page.click('#addNodeBtn'))
-        dialog('topic history dialog', lambda: page.locator('.sh-card button', has_text='Details').first.click())
-
-        def password():
-            page.click('[title="Settings"]')
-            page.wait_for_selector('.sh-modal')
-            page.locator('.sh-modal button', has_text='Change Password').click()
-        dialog('password dialog', password)
+        check_dialog(page, rep, tag, 'settings dialog', ['[title="Settings"]'])
+        check_dialog(page, rep, tag, 'add-node dialog', ['#addNodeBtn'])
+        check_dialog(page, rep, tag, 'topic history dialog', ['.sh-card >> text=Details'])
+        check_dialog(page, rep, tag, 'password dialog', ['[title="Settings"]', '.sh-modal >> text=Change Password'])
         page.keyboard.press('Escape')
         page.click('#viewHeartbeats')
         page.wait_for_selector('#hbTable tbody tr')
-        dialog('heartbeat history dialog', lambda: page.locator('.hb-history').first.click(), ranges=('1m', '1d', '7d', '30d'))
+        check_dialog(page, rep, tag, 'heartbeat history dialog', ['.hb-history'], ranges=('1m', '1d', '7d', '30d'))
         browser.close()
 
 
@@ -362,7 +366,7 @@ def run_interactions(pw, base, rep, label, w, h, scale):
     with page.expect_download() as dl:
         page.click('#hbExportOne')
     one = dl.value
-    body = open(one.path(), encoding='utf-8').read()
+    body = read_text(one.path())
     rep.check(f'{label}: one node exports as CSV', one.suggested_filename.endswith('.csv') and body.startswith('node,'),
               one.suggested_filename, page)
     page.keyboard.press('Escape')
@@ -372,13 +376,13 @@ def run_interactions(pw, base, rep, label, w, h, scale):
     boxes.nth(1).check()
     with page.expect_download() as dl:
         page.click('#hbExportSelected')
-    some = open(dl.value.path(), encoding='utf-8').read().splitlines()
+    some = read_text(dl.value.path()).splitlines()
     names = {line.split(',')[0] for line in some[1:]}
     rep.check(f'{label}: the selected nodes export together', len(names) == 2, names, page)
     page.select_option('#hbWhat', 'events')
     with page.expect_download() as dl:
         page.click('#hbExportAll')
-    every = open(dl.value.path(), encoding='utf-8').read().splitlines()
+    every = read_text(dl.value.path()).splitlines()
     rep.check(f'{label}: all nodes export their status changes', every[0] == 'node,time_utc,unix_time,status'
               and len({line.split(',')[0] for line in every[1:]}) == len(HB_NODES), every[:2], page)
     page.click('#viewTopics')
