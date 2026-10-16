@@ -27,6 +27,28 @@
   `/api/status` needs a signed-in session (the heartbeat API also takes its
   bearer token).
 
+## Untrusted input
+
+Everything from MQTT and from the network is treated as hostile:
+
+| Input | Protection |
+| ----- | ---------- |
+| MQTT payloads | Over `MQTT_MAX_PAYLOAD_BYTES` (64 KB) dropped and counted; deeply nested JSON kept as text instead of crashing the parser |
+| Topic names and payloads in the log | Line breaks and control characters removed, length capped: no forged log lines |
+| Request bodies | Over 1 MB refused before they are read (413) |
+| Numbers in queries | Only finite numbers accepted (`nan`, `inf` fall back to defaults) |
+| Live-update streams | At most `SENSEHIVE_MAX_STREAMS` (50) at once; more get 503 |
+| Heartbeats | Verified, fresh and in order (see [ADR 0002](adr/0002-heartbeat-receiver.md)); a node faster than `HEARTBEAT_MIN_SPACING` is dropped as a flood |
+| API tokens | 20 wrong tokens from one address in 15 minutes lock that address out for a while |
+| Health endpoint | The exact version is shown only to signed-in users and token holders (no fingerprinting) |
+
+## Exports
+
+CSV files (topic export and heartbeat export) escape any cell that starts with
+`=`, `+`, `-`, `@`, a tab or a carriage return with a leading `'`, so opening a
+file in a spreadsheet can never run a formula from a payload or a node name.
+Plain numbers such as `-12.5` stay numbers.
+
 ## Browser policy (CSP)
 
 Every page is sent with:
@@ -38,6 +60,9 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 X-Content-Type-Options: nosniff
 Referrer-Policy: same-origin
 X-Frame-Options: SAMEORIGIN
+Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
 ```
 
 All scripts come from SenseHive itself (`version-1.0/static`, built ahead of
@@ -60,7 +85,8 @@ the same origin. The browser UI test fails on any CSP violation.
 
 `SENSEHIVE_ADMIN_PASSWORD`, `DEFAULT_BROKER_PASSWORD`, `HEARTBEAT_MASTER_KEY`,
 `HEARTBEAT_API_TOKEN` and `SECRET_KEY` belong in `.env` or a secret store,
-never in the repository. The image ships no database and no secrets.
+never in the repository. The image ships no database and no secrets. A session
+secret generated on first start is written readable by its owner only (0600).
 
 ## Checks on every change
 

@@ -8,7 +8,7 @@ import re
 import pytest
 
 ROOT = os.path.join(os.path.dirname(__file__), '..', 'version-1.0')
-PAGES = ('index.html', 'login.html', 'heartbeats.html')
+PAGES = ('index.html', 'login.html')
 
 
 def page(name):

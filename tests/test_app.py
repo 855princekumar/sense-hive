@@ -14,8 +14,10 @@ def test_public_endpoints_need_no_login(sh):
     c = sh.app.test_client()
     health = c.get('/api/health').get_json()
     assert health['status'] == 'healthy'
-    assert health['version'] == sh.__version__
+    assert 'version' not in health                       # no version fingerprint for strangers
     assert c.get('/api/status').get_json() == {'connected': False}
+    c.post('/api/login', json={'username': 'admin', 'password': 'admin123'})
+    assert c.get('/api/health').get_json()['version'] == sh.__version__
 
 
 @pytest.mark.parametrize('method,path', [
@@ -69,8 +71,8 @@ def source(*parts):
 
 
 def test_frontend_uses_relative_urls_for_ingress():
-    pages = [('version-1.0', 'templates', n) for n in ('index.html', 'login.html', 'heartbeats.html')]
-    code = [('frontend', n) for n in ('dashboard.jsx', 'login.jsx', 'heartbeats.js')]
+    pages = [('version-1.0', 'templates', n) for n in ('index.html', 'login.html')]
+    code = [('frontend', n) for n in ('dashboard.jsx', 'login.jsx', 'heartbeats.jsx')]
     for parts in pages + code:
         text = source(*parts)
         for absolute in ("fetch('/", 'fetch(`/', "EventSource('/", "href = '/login'", 'href="/', 'src="/', "href='/"):

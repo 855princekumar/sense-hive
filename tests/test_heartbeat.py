@@ -123,7 +123,8 @@ def test_the_heartbeats_page_needs_a_login(hive):
     c = hive.app.test_client()
     assert c.get('/heartbeats').status_code == 302
     c.post('/api/login', json={'username': 'admin', 'password': 'admin123'})
-    assert b'Heartbeats' in c.get('/heartbeats').data
+    r = c.get('/heartbeats')                             # part of the dashboard since 1.5
+    assert r.status_code == 302 and r.headers['Location'].endswith('?view=heartbeats')
 
 
 def test_old_presence_is_pruned(hive):

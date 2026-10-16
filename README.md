@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="SenseHive Banner"/>
 </p>
 
-![Release](https://img.shields.io/badge/release-v1.4.2-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-28%20MB%20idle%20%7C%2035%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
+![Release](https://img.shields.io/badge/release-v1.5.0-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-28%20MB%20idle%20%7C%2035%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
 
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
@@ -31,6 +31,7 @@
 - [Documentation](#documentation)
 - [Quick Start (30 seconds)](#quick-start-30-seconds)
 - [Dashboard Preview](#dashboard-preview)
+- [What's New in v1.5](#whats-new-in-v15)
 - [What's New in v1.4](#whats-new-in-v14)
 - [Key Features](#key-features)
 - [What's New in v1.1](#whats-new-in-v11)
@@ -190,7 +191,7 @@ Screenshots are taken from a seeded test install by `tools/screenshots.py`
   <img src="assets/settings.png" width="45%" alt="Settings" />
 </p>
 <p align="center">
-  <img src="assets/heartbeats.png" width="60%" alt="Heartbeats page" />
+  <img src="assets/heartbeats.png" width="60%" alt="Heartbeats view" />
   <img src="assets/phone.png" width="22%" alt="Dashboard on a phone" />
 </p>
 <p align="center">
@@ -220,6 +221,21 @@ itself and serves their state through a read-only API.
 | **Data Management**        | Entry count & size per topic · Retention by age/entries · SQLite WAL mode          |
 | **Wildcard Topics**        | `sensors/#` and `home/+/temp` subscriptions are logged                             |
 | **Deployment Flexibility** | Docker (multi-arch amd64 + arm64) · Home Assistant add-on · `pip install` CLI      |
+---
+
+## What's New in v1.5
+
+| Area | Change |
+| ---- | ------ |
+| Heartbeat history | Every heartbeat kept (48 h by default); per-node charts for 1 minute, 1 hour, 1 day, 7 days and 30 days with breaks, uptime and delivery delay; CSV export for one, selected or all nodes |
+| Dashboard | Two cards, Topic logs and Heartbeats, switch the view with a smooth fade (GPU-composited, respects reduced motion); every dialog fits the screen at any size and zoom |
+| Security | Strict hostile-input review ([ADR 0008](docs/adr/0008-hostile-input.md)): payload size cap, per-node flood limit, API token lockout, CSV formula escaping, request size limit, more security headers, CI actions pinned to commits |
+
+<p align="center">
+  <img src="assets/heartbeat-history.png" width="48%" alt="Heartbeat history, 1 day" />
+  <img src="assets/heartbeat-uptime.png" width="48%" alt="Heartbeat uptime, 7 days" />
+</p>
+
 ---
 
 ## What's New in v1.4
@@ -485,7 +501,7 @@ docker pull devprincekumar/sense-hive:latest
 ```
 
 * One multi-arch image for AMD64 / x86 and ARM64 (Raspberry Pi 4/5); Docker picks the right one
-* Pin a release with `devprincekumar/sense-hive:1.4.2`; `edge` tracks the `main` branch
+* Pin a release with `devprincekumar/sense-hive:1.5.0`; `edge` tracks the `main` branch
 * `arm-pi-5` remains available and points to the same multi-arch release
 
 ---
@@ -898,7 +914,11 @@ It is not intended to replace full-scale IoT platforms.
 
 ## Versioning and Release Status
 
-### v1.4 (Current)
+### v1.5 (Current)
+
+* Heartbeat history with charts and CSV export, dashboard view cards, dialogs that always fit, hostile-input hardening ([What's New in v1.5](#whats-new-in-v15))
+
+### v1.4
 
 * EdgeShell's theme, responsive layout at every screen size and zoom, no CDN with a strict CSP, SQL-safe topic names, browser UI test, full docs and ADRs ([What's New in v1.4](#whats-new-in-v14))
 

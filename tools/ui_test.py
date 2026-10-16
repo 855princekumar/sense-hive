@@ -35,7 +35,7 @@ SCREENS = [('phone', 390, 844, 3), ('tablet', 820, 1180, 2), ('laptop', 1366, 76
            ('desktop', 1920, 1080, 1)]
 ZOOMS = [('laptop', 1366, 768, z) for z in (0.67, 1.25, 1.5, 2.0)] + \
         [('desktop', 1920, 1080, z) for z in (1.5, 2.0)]
-PAGES = ['/login', '/', '/heartbeats']
+PAGES = ['/login', '/', '/?view=heartbeats']
 PASSWORD = 'ui-test-' + os.urandom(6).hex()
 
 LAYOUT_JS = r"""
@@ -53,7 +53,14 @@ LAYOUT_JS = r"""
     out.push('page scrolls sideways: content ' + document.documentElement.scrollWidth + 'px wide in a ' + vw
       + 'px window, widened by ' + wide.slice(0, 3).map(el => name(el) + ' (' + Math.round(el.getBoundingClientRect().width) + 'px)').join(', '));
   }
-  const boxes = [...document.querySelectorAll('.sh-card, .sh-nav, .sh-modal, .sh-bar, header, .wrap, .pill')].filter(vis);
+  const vh = document.documentElement.clientHeight;
+  for (const m of document.querySelectorAll('.sh-modal')) {
+    if (!vis(m)) continue;
+    const r = m.getBoundingClientRect();
+    if (r.top < -1 || r.bottom > vh + 1 || r.left < -1 || r.right > vw + 1)
+      out.push(name(m) + ' does not fit the screen: ' + Math.round(r.top) + ' to ' + Math.round(r.bottom) + ' px in a ' + vh + ' px window');
+  }
+  const boxes = [...document.querySelectorAll('.sh-card, .sh-nav, .sh-modal, .sh-bar, .sh-view-card, header, .wrap, .pill')].filter(vis);
   for (const el of document.querySelectorAll('.sh-card, .sh-modal'))
     if (vis(el) && el.getBoundingClientRect().width < 120)
       out.push(name(el) + ' is squeezed to ' + Math.round(el.getBoundingClientRect().width) + 'px wide');
@@ -139,6 +146,25 @@ def seed(app):
                          (name, status, now - age, now - age, now - 7200, str(version),
                           now - age if status == 'offline' else None))
         conn.commit()
+        for name, status, age, _version in HB_NODES:
+            node = conn.execute('SELECT rowid FROM hb_nodes WHERE name = ?', (name,)).fetchone()[0]
+            end = now - age
+            beats, t = [], end - 7200
+            while t <= end:
+                if not (end - 3000 < t < end - 2820):                     # a 3-minute break
+                    beats.append((node, t, 1, round(random.uniform(0.05, 0.4), 3)))
+                t += 10
+            if status == 'offline':
+                beats.append((node, end + 30, 2, None))
+            conn.executemany('INSERT OR IGNORE INTO hb_beats (node, t, kind, lag) VALUES (?, ?, ?, ?)', beats)
+            minutes = {int(b[1] // 60) for b in beats}
+            minutes |= {m for m in range(int((now - 7 * 86400) // 60), int((end - 7200) // 60))
+                        if (m // 60) % 23 != 5}                            # an hour off now and then
+            conn.executemany('INSERT OR IGNORE INTO hb_minutes (name, minute) VALUES (?, ?)', [(name, m) for m in minutes])
+            conn.executemany('INSERT INTO hb_events (name, status, at) VALUES (?, ?, ?)',
+                             [(name, 'online', now - 7200), (name, 'silent', end - 2990), (name, 'online', end - 2820)]
+                             + ([(name, status, end + 30)] if status != 'online' else []))
+        conn.commit()
     app.heartbeat_receiver.init_db()
     app.heartbeat_receiver.tracker.nodes.clear()        # statuses from the table, not a live tracker
 
@@ -192,6 +218,31 @@ def layout(page):
     return page.evaluate(LAYOUT_JS)
 
 
+def read_text(path):
+    with open(path, encoding='utf-8') as fh:
+        return fh.read()
+
+
+def check_dialog(page, rep, tag, name, clicks, ranges=()):
+    """Open a dialog (click each selector in turn, first match), check it fits the
+    screen, for each period too, and that Escape closes it."""
+    for selector in clicks:
+        page.locator(selector).first.click()
+        page.wait_for_selector('.sh-modal')
+    settle(page)
+    issues = layout(page)
+    rep.check(f'{tag} {name} fits the screen', not issues, '; '.join(issues[:6]), page)
+    for r in ranges:                              # the chart and figures of each period fit too
+        page.click(f'.sh-modal [data-range="{r}"]')
+        page.wait_for_selector('.sh-modal svg', timeout=10000)
+        settle(page)
+        issues = layout(page)
+        rep.check(f'{tag} {name} {r} fits the screen', not issues, '; '.join(issues[:6]), page)
+    page.keyboard.press('Escape')
+    page.wait_for_timeout(250)
+    rep.check(f'{tag} {name} closes', page.locator('.sh-modal').count() == 0, '', page)
+
+
 def run_layout(pw, base, rep, configs, dark=False):
     for label, w, h, scale in configs:
         zoomed = label in ('laptop', 'desktop') and scale != 1
@@ -214,23 +265,22 @@ def run_layout(pw, base, rep, configs, dark=False):
         for path in PAGES[1:]:
             errors.clear()
             page.goto(base + path)
-            page.wait_for_selector('.sh-card, tbody#rows tr td', timeout=15000)
+            page.wait_for_selector('#hbTable tbody tr' if 'heartbeats' in path else '.sh-card', timeout=15000)
             settle(page)
             issues = layout(page)
             rep.check(f'{tag} {path} layout', not issues, '; '.join(issues[:6]), page)
             rep.check(f'{tag} {path} no JavaScript errors', not errors, '; '.join(errors[:3]), page)
         page.goto(base + '/')
         page.wait_for_selector('.sh-card')
-        for name, opener in (('settings dialog', '[title="Settings"]'), ('add-node dialog', '#addNodeBtn')):
-            page.click(opener)
-            page.wait_for_selector('.sh-modal')
-            settle(page)
-            issues = layout(page)
-            rep.check(f'{tag} {name} fits the screen', not issues, '; '.join(issues[:6]), page)
-            page.keyboard.press('Escape')
-            if page.locator('.sh-modal').count():
-                page.locator('.sh-modal [data-close]').first.click()
-            rep.check(f'{tag} {name} closes', page.locator('.sh-modal').count() == 0, '', page)
+
+        check_dialog(page, rep, tag, 'settings dialog', ['[title="Settings"]'])
+        check_dialog(page, rep, tag, 'add-node dialog', ['#addNodeBtn'])
+        check_dialog(page, rep, tag, 'topic history dialog', ['.sh-card >> text=Details'])
+        check_dialog(page, rep, tag, 'password dialog', ['[title="Settings"]', '.sh-modal >> text=Change Password'])
+        page.keyboard.press('Escape')
+        page.click('#viewHeartbeats')
+        page.wait_for_selector('#hbTable tbody tr')
+        check_dialog(page, rep, tag, 'heartbeat history dialog', ['.hb-history'], ranges=('1m', '1d', '7d', '30d'))
         browser.close()
 
 
@@ -286,14 +336,56 @@ def run_interactions(pw, base, rep, label, w, h, scale):
     rep.check(f'{label}: the dark theme choice is remembered', dark != bg, dark, page)
     page.click('[title="Toggle theme"]')
 
-    page.click('#heartbeatsLink')
-    page.wait_for_selector('tbody#rows tr td')
+    rep.check(f'{label}: the nav bar has no separate heartbeats button', page.locator('#heartbeatsLink').count() == 0, '', page)
+    hb_card = page.inner_text('#viewHeartbeats')
+    rep.check(f'{label}: the heartbeats card counts the nodes', f'{len(HB_NODES)} nodes' in hb_card, hb_card, page)
+    page.click('#viewHeartbeats')
+    page.wait_for_selector('#hbTable tbody tr')
     settle(page)
-    rows = page.locator('tbody#rows tr').count()
-    rep.check(f'{label}: the heartbeats page lists every node', rows == len(HB_NODES), rows, page)
+    rep.check(f'{label}: the card switches the view (and the address)', 'view=heartbeats' in page.url, page.url, page)
+    opacity = page.evaluate("getComputedStyle(document.querySelector('.sh-view')).opacity")
+    rep.check(f'{label}: the view fades in fully', opacity == '1', opacity, page)
+    rows = page.locator('#hbTable tbody tr').count()
+    rep.check(f'{label}: the heartbeats view lists every node', rows == len(HB_NODES), rows, page)
     for state in ('online', 'offline', 'silent'):
-        rep.check(f'{label}: a {state} heartbeat node is shown', page.locator(f'td.{state}').count() >= 1, '', page)
-    page.click('#dashboardLink')
+        rep.check(f'{label}: a {state} heartbeat node is shown', page.locator(f'.hb-state[data-state="{state}"]').count() >= 1, '', page)
+
+    page.locator('.hb-history').first.click()
+    page.wait_for_selector('.sh-modal svg')
+    settle(page)
+    text = page.inner_text('.sh-modal')
+    rep.check(f'{label}: heartbeat history shows the figures', 'Heartbeats received' in text and 'Longest break' in text, text[:200], page)
+    page.click('.sh-modal [data-range="1d"]')
+    page.wait_for_timeout(800)
+    text = page.inner_text('.sh-modal')
+    rep.check(f'{label}: the 3-minute break is found', 'Breaks' in text and '3 min' in text, text[:300], page)
+    page.click('.sh-modal [data-range="7d"]')
+    page.wait_for_timeout(800)
+    rep.check(f'{label}: 7 days shows hourly uptime bars', page.locator('.sh-modal svg rect').count() > 100,
+              page.locator('.sh-modal svg rect').count(), page)
+    with page.expect_download() as dl:
+        page.click('#hbExportOne')
+    one = dl.value
+    body = read_text(one.path())
+    rep.check(f'{label}: one node exports as CSV', one.suggested_filename.endswith('.csv') and body.startswith('node,'),
+              one.suggested_filename, page)
+    page.keyboard.press('Escape')
+
+    boxes = page.locator('#hbTable tbody input[type=checkbox]')
+    boxes.nth(0).check()
+    boxes.nth(1).check()
+    with page.expect_download() as dl:
+        page.click('#hbExportSelected')
+    some = read_text(dl.value.path()).splitlines()
+    names = {line.split(',')[0] for line in some[1:]}
+    rep.check(f'{label}: the selected nodes export together', len(names) == 2, names, page)
+    page.select_option('#hbWhat', 'events')
+    with page.expect_download() as dl:
+        page.click('#hbExportAll')
+    every = read_text(dl.value.path()).splitlines()
+    rep.check(f'{label}: all nodes export their status changes', every[0] == 'node,time_utc,unix_time,status'
+              and len({line.split(',')[0] for line in every[1:]}) == len(HB_NODES), every[:2], page)
+    page.click('#viewTopics')
     page.wait_for_selector('.sh-card')
 
     page.click('#addNodeBtn')

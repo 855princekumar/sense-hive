@@ -25,12 +25,13 @@ and its own tables. Turning one on or off never affects the other.
 2. [What the agent does on a node](#what-the-agent-does-on-a-node)
 3. [How SenseHive finds nodes by itself](#how-sensehive-finds-nodes-by-itself)
 4. [Node states](#node-states)
-5. [Turning the receiver on](#turning-the-receiver-on)
-6. [The read API](#the-read-api)
-7. [Reading heartbeats from other tools](#reading-heartbeats-from-other-tools)
-8. [With EdgeShell](#with-edgeshell)
-9. [Security](#security)
-10. [Troubleshooting](#troubleshooting)
+5. [Heartbeat history, charts and CSV export](#heartbeat-history-charts-and-csv-export)
+6. [Turning the receiver on](#turning-the-receiver-on)
+7. [The read API](#the-read-api)
+8. [Reading heartbeats from other tools](#reading-heartbeats-from-other-tools)
+9. [With EdgeShell](#with-edgeshell)
+10. [Security](#security)
+11. [Troubleshooting](#troubleshooting)
 
 ## How the heartbeat works
 
@@ -108,6 +109,50 @@ page within seconds.
 Each change is stored as an event; the minutes with a heartbeat are stored for
 `HEARTBEAT_KEEP_DAYS` (30) to measure uptime exactly.
 
+## Heartbeat history, charts and CSV export
+
+Open the dashboard and choose the **Heartbeats** card. Every node the receiver
+has seen is listed with its status, last heartbeat, how long it has been in that
+state, its last will and its agent version.
+
+![Heartbeats view](../assets/heartbeats.png)
+
+**History** on a node opens its chart for the last **1 minute, 1 hour, 1 day,
+7 days or 30 days**:
+
+| Period | Chart | From |
+| ------ | ----- | ---- |
+| 1 minute, 1 hour, 1 day | seconds between consecutive heartbeats; breaks shaded red, last wills as red lines, the usual interval dashed | every heartbeat (kept `HEARTBEAT_BEATS_HOURS`, 48) |
+| 7 days, 30 days | uptime per hour (green 99 % or more, amber 50 % or more, red below) | online minutes (kept `HEARTBEAT_KEEP_DAYS`, 30) |
+
+Under the chart: uptime, heartbeats received, the usual interval, the longest
+break, the number of breaks, the median delivery delay, and a list of breaks
+with their times. A **break** is a gap longer than 2.5 times the usual interval
+(at least 5 seconds more), so a 10-second node shows any silence over 25
+seconds. The status band under the chart shows online, silent and offline
+periods.
+
+![Heartbeat history, 1 day](../assets/heartbeat-history.png)
+
+![Heartbeat history, 7 days](../assets/heartbeat-uptime.png)
+
+**CSV export**
+
+- In the history: **Export CSV** for that node and period.
+- In the list: tick nodes (or the box in the header for all), choose **every
+  heartbeat**, **online minutes** or **status changes** and a period, then
+  **Selected** or **All nodes**. One file holds all the chosen nodes, with a
+  `node` column.
+
+| Export | Columns |
+| ------ | ------- |
+| every heartbeat | `node, time_utc, unix_time, kind (birth, hb, lwt), delay_ms` |
+| online minutes | `node, minute_utc, unix_time` |
+| status changes | `node, time_utc, unix_time, status` |
+
+Cells that a spreadsheet could run as a formula are escaped (see
+[Security](SECURITY.md#exports)).
+
 ## Turning the receiver on
 
 ```bash
@@ -164,6 +209,28 @@ will arrived.
 The start of every minute in which each node sent a verified heartbeat (at
 most `HEARTBEAT_KEEP_DAYS` back). Uptime over a period is the number of minutes
 listed divided by the minutes in the period.
+
+### `GET /api/heartbeat/history?node=<name>&range=<1m|1h|1d|7d|30d>`
+
+The data behind the history chart for one node:
+
+```json
+{"node": "pi-node-01", "range": "1h", "since": 1760606412.0, "until": 1760610012.0,
+ "kind": "beats", "points": [[1760606415.2, 1, 0.21], [1760606425.2, 1, 0.19]],
+ "interval": 10.0, "received": 352, "lag_ms": 210, "longest_break": 180.0,
+ "breaks": [{"from": 1760608000.1, "to": 1760608180.3, "seconds": 180.2}],
+ "events": [{"status": "online", "at": 1760541203.0}], "uptime": 95.0}
+```
+
+`points` are `[receive time, kind (0 birth, 1 heartbeat, 2 last will), delay
+in seconds]`. For `7d` and `30d`, `kind` is `"hours"` and `points` are
+`[hour start, online minutes, minutes in range]`. `400` for an unknown range,
+`404` for an unknown node.
+
+### `GET /api/heartbeat/export.csv?nodes=<a,b|all>&what=<beats|minutes|events>&since=<unix>&until=<unix>`
+
+The CSV files described above. `nodes` defaults to all, `what` to `beats`,
+`since` to one day ago (at most `HEARTBEAT_KEEP_DAYS` back).
 
 ### `GET /api/heartbeat/events?since=<unix>`
 
@@ -255,7 +322,9 @@ EdgeShell runs SenseHive in its Compose stack and:
 | Finding or following the fleet | Topics look random and change every 10 minutes; random client ids |
 | Faking a node | Each node has its own key; a stolen node key speaks only for that node |
 | Replays and old wills | Time within 2 minutes, strictly increasing; wills bound to the session |
-| Reading the API | Bearer token (32+ characters, compared in constant time) or a signed-in session; GET only |
+| Reading the API | Bearer token (32+ characters, compared in constant time) or a signed-in session; GET only; 20 wrong tokens from one address in 15 minutes lock that address out |
+| A stolen node key flooding | Heartbeats closer than `HEARTBEAT_MIN_SPACING` (2 s) are dropped and counted (`flooded` in `/api/heartbeat/status`), so the history and the CPU stay safe |
+| Spreadsheet formulas in exports | Cells starting with `=`, `+`, `-`, `@` are escaped; plain numbers stay numbers |
 | The master key | Only in SenseHive's and EdgeShell's environment, never on a node, never in the repository |
 
 ## Troubleshooting

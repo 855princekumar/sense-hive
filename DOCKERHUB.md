@@ -32,7 +32,8 @@ under **Settings**.
 | Tag | Description |
 | --- | ----------- |
 | `latest` | Latest release, multi-arch (amd64 + arm64) |
-| `1.4.2`, `1.4` | SenseHive 1.4.2, multi-arch |
+| `1.5.0`, `1.5` | SenseHive 1.5.0, multi-arch |
+| `1.4.2`, `1.4` | SenseHive 1.4.2 |
 | `1.4.1` | SenseHive 1.4.1 |
 | `1.4.0` | SenseHive 1.4.0 |
 | `1.3.0`, `1.3` | SenseHive 1.3.0 |
@@ -58,6 +59,12 @@ Apple Silicon). Docker picks the right architecture automatically.
 | Security | Login-protected UI and API, no CDN and a strict Content Security Policy, SQL-safe topic names, salted slow password hashes, lockout after repeated failed sign-ins, CSRF protection, HttpOnly cookies, persistent random session secret, no data baked into the image |
 | Operations | `/api/health` and `/api/status` endpoints, Docker HEALTHCHECK, timezone-aware timestamps |
 | Heartbeats (1.2) | Optional receiver for the [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service): encrypted, authenticated heartbeats and LWT over a public broker, `/heartbeats` page, read-only API. Off unless `HEARTBEAT_MASTER_KEY` is set |
+
+## What's new in 1.5.0
+
+- Heartbeat history: every heartbeat kept (48 h), per-node charts for 1 minute to 30 days with breaks, CSV export for one, selected or all nodes
+- Two cards on the dashboard switch between Topic logs and Heartbeats with a smooth fade; dialogs always fit the screen
+- Hardened against hostile input: payload size cap, flood limit per node, API token lockout, CSV formula escaping, request size limit, more security headers
 
 ## What's new in 1.4.0
 

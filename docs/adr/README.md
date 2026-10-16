@@ -12,3 +12,5 @@ marked *Superseded* and links to its replacement.
 | [0004](0004-vendored-frontend-and-csp.md) | Browser code built ahead of time, served locally, strict CSP | Accepted (1.4) |
 | [0005](0005-edgeshell-theme.md) | EdgeShell's theme, light by default | Accepted (1.4) |
 | [0006](0006-browser-ui-test.md) | A browser UI test on every screen size and zoom in CI | Accepted (1.4) |
+| [0007](0007-heartbeat-history.md) | Heartbeat history, charts and CSV export | Accepted (1.5) |
+| [0008](0008-hostile-input.md) | Treat every input as hostile | Accepted (1.5) |

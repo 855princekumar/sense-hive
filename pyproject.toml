@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sensehive-iot"
-version = "1.4.2"
+version = "1.5.0"
 description = "Lightweight MQTT data logger and dashboard: Run -> Add Topic -> Publish -> See Data"
 readme = "README.md"
 license = "MIT"
