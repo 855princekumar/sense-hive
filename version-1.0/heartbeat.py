@@ -19,7 +19,6 @@ Settings (environment)
 """
 import hmac
 import os
-import sqlite3
 import threading
 import time
 

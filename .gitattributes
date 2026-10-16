@@ -1,1 +1,3 @@
 * text=auto eol=lf
+# built browser code: byte-exact, checked against SHA256SUMS in CI
+version-1.0/static/** -text

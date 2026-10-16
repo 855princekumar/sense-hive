@@ -1,0 +1,15 @@
+{
+  "name": "sensehive-frontend",
+  "private": true,
+  "description": "Build of SenseHive's browser code: JSX compiled ahead of time, Tailwind CSS built from the classes in use, React served locally. Output in version-1.0/static (committed, so Docker and pip need no Node).",
+  "scripts": {
+    "build": "node tools/build_frontend.mjs",
+    "check": "node tools/build_frontend.mjs --check"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tailwindcss": "3.4.17"
+  }
+}

@@ -11,3 +11,4 @@ venv/
 build/
 dist/
 *.egg-info/
+node_modules/

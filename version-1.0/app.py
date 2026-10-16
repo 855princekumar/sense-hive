@@ -14,9 +14,8 @@ from contextlib import contextmanager
 import queue
 import pytz
 from functools import wraps
-import hashlib
 
-__version__ = '1.3.0'
+__version__ = '1.4.0'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
@@ -79,7 +78,23 @@ def publish_event(data):
 
 
 def table_name_for(topic):
-    return topic.replace('/', '_').replace('#', 'wildcard').replace('+', 'plus')
+    """The SQLite table of a topic, always used inside double quotes ("..."). A `"`
+    is doubled (SQL's identifier escape), so no topic can end the identifier and
+    add SQL of its own; topics without one map to the same names as before."""
+    return topic.replace('/', '_').replace('#', 'wildcard').replace('+', 'plus').replace('"', '""')
+
+
+MAX_TOPIC_LENGTH = 512
+
+
+def topic_error(topic):
+    """Why a topic cannot be added, or None. MQTT allows almost any character;
+    SenseHive refuses the few that serve no real topic and only break things."""
+    if len(topic) > MAX_TOPIC_LENGTH:
+        return f'Topic is longer than {MAX_TOPIC_LENGTH} characters'
+    if '"' in topic or any(ord(ch) < 32 or ord(ch) == 127 for ch in topic):
+        return 'Topic cannot contain double quotes or control characters'
+    return None
 
 
 # Database helper
@@ -202,7 +217,7 @@ def topic_stats(c, topic):
     try:
         row = c.execute(f'''SELECT COUNT(*) AS entries,
                                    COALESCE(SUM(LENGTH(CAST(payload AS BLOB)) + LENGTH(timestamp) + 12), 0) AS size
-                            FROM "{table_name_for(topic)}"''').fetchone()
+                            FROM "{table_name_for(topic)}"''').fetchone()  # nosec B608 - identifier from table_name_for(), values bound
         return row['entries'], row['size']
     except sqlite3.OperationalError:
         return 0, 0
@@ -293,7 +308,8 @@ def init_db():
             # (never printed); otherwise the documented default, to be changed.
             initial = os.getenv('SENSEHIVE_ADMIN_PASSWORD') or 'admin123'
             c.execute("INSERT INTO users (id, username, password) VALUES (1, 'admin', ?)", (hash_password(initial),))
-            print("✅ Default user created: admin/" + ("<SENSEHIVE_ADMIN_PASSWORD>" if os.getenv('SENSEHIVE_ADMIN_PASSWORD') else "admin123"))
+            shown = '<SENSEHIVE_ADMIN_PASSWORD>' if os.getenv('SENSEHIVE_ADMIN_PASSWORD') else 'admin123'
+            print("✅ Default user created: admin/" + shown)
 
         # Use environment variables for default broker or fallback to HiveMQ
         default_host = os.getenv('DEFAULT_BROKER_HOST', 'broker.hivemq.com')
@@ -370,11 +386,11 @@ def apply_retention():
                 if days > 0:
                     cutoff = int(time.time()) - days * 86400
                     c.execute(f'''DELETE FROM "{table_name}"
-                                  WHERE CAST(strftime('%s', timestamp) AS INTEGER) < ?''', (cutoff,))
+                                  WHERE CAST(strftime('%s', timestamp) AS INTEGER) < ?''', (cutoff,))  # nosec B608 - identifier from table_name_for(), values bound
                     deleted += max(c.rowcount, 0)
                 if max_entries > 0:
                     c.execute(f'''DELETE FROM "{table_name}" WHERE id <= (
-                                    SELECT id FROM "{table_name}" ORDER BY id DESC LIMIT 1 OFFSET ?)''',
+                                    SELECT id FROM "{table_name}" ORDER BY id DESC LIMIT 1 OFFSET ?)''',  # nosec B608 - identifier from table_name_for(), values bound
                               (max_entries,))
                     deleted += max(c.rowcount, 0)
             except sqlite3.OperationalError as e:
@@ -425,7 +441,7 @@ def create_topic_table(topic):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             payload TEXT NOT NULL
-        )''')
+        )''')  # nosec B608 - identifier from table_name_for(), values bound
         conn.commit()
     return table_name
 
@@ -505,7 +521,7 @@ def on_message(client, userdata, msg):
             # A message can match several subscriptions (exact topics and wildcards like sensors/#)
             matched = sorted({row['topic'] for row in rows if mqtt.topic_matches_sub(row['topic'], topic)})
             for sub in matched:
-                c.execute(f'INSERT INTO "{table_name_for(sub)}" (timestamp, payload) VALUES (?, ?)',
+                c.execute(f'INSERT INTO "{table_name_for(sub)}" (timestamp, payload) VALUES (?, ?)',  # nosec B608 - identifier from table_name_for(), values bound
                           (localized_time, json.dumps(payload)))
 
             # LWT / birth messages update device status
@@ -578,6 +594,24 @@ def mqtt_watchdog():
                 mqtt_client.reconnect()
             except Exception:
                 pass
+
+# Every script comes from SenseHive itself (version-1.0/static, built ahead of
+# time, no CDN): the policy refuses any other script, so a compromised
+# third-party host could never run code here (SenseHive can share an origin
+# with EdgeShell behind its gate).
+CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+       "connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; "
+       "frame-ancestors 'self'")
+
+
+@app.after_request
+def security_headers(resp):
+    resp.headers.setdefault('Content-Security-Policy', CSP)
+    resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    resp.headers.setdefault('Referrer-Policy', 'same-origin')
+    resp.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    return resp
+
 
 @app.before_request
 def refuse_cross_site_changes():
@@ -822,7 +856,7 @@ def nodes():
 
                 # Get last value
                 try:
-                    c.execute(f'SELECT payload, timestamp FROM "{table_name}" ORDER BY id DESC LIMIT 1')
+                    c.execute(f'SELECT payload, timestamp FROM "{table_name}" ORDER BY id DESC LIMIT 1')  # nosec B608 - identifier from table_name_for(), values bound
                     last = c.fetchone()
                     if last:
                         node['last_value'] = json.loads(last['payload'])
@@ -843,6 +877,9 @@ def nodes():
         topic = (data.get('topic') or '').strip()
         if not topic:
             return jsonify({'success': False, 'error': 'Topic is required'}), 400
+        error = topic_error(topic)
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
         fields, error = node_fields_from(data)
         if error:
             return jsonify({'success': False, 'error': error}), 400
@@ -947,7 +984,7 @@ def delete_node(node_id):
         table_name = table_name_for(topic)
 
         # Drop table
-        c.execute(f'DROP TABLE IF EXISTS "{table_name}"')
+        c.execute(f'DROP TABLE IF EXISTS "{table_name}"')  # nosec B608 - identifier from table_name_for(), values bound
 
         # Delete node
         c.execute('DELETE FROM nodes WHERE id = ?', (node_id,))
@@ -975,7 +1012,7 @@ def node_history(node_id):
         table_name = table_name_for(topic)
 
         try:
-            c.execute(f'SELECT payload, timestamp FROM "{table_name}" ORDER BY id DESC LIMIT 50')
+            c.execute(f'SELECT payload, timestamp FROM "{table_name}" ORDER BY id DESC LIMIT 50')  # nosec B608 - identifier from table_name_for(), values bound
             history = []
             for row in c.fetchall():
                 history.append({
@@ -1004,7 +1041,7 @@ def export_node(node_id):
         table_name = table_name_for(topic)
 
         try:
-            c.execute(f'SELECT timestamp, payload FROM "{table_name}" ORDER BY id DESC')
+            c.execute(f'SELECT timestamp, payload FROM "{table_name}" ORDER BY id DESC')  # nosec B608 - identifier from table_name_for(), values bound
             rows = c.fetchall()
 
             # Create CSV
@@ -1035,7 +1072,7 @@ except ImportError:                          # run as app.py (Docker image, test
     import heartbeat as heartbeat_module
 
 heartbeat_receiver = heartbeat_module.register(app, get_db, lambda: 'logged_in' in session,
-                                               lambda: new_mqtt_client())
+                                               lambda: new_mqtt_client())  # noqa: PLW0108 - looked up at call time
 
 
 @app.route('/heartbeats')
@@ -1071,7 +1108,7 @@ def stream():
     return Response(event_stream(), mimetype='text/event-stream')
 
 
-def run(host='0.0.0.0', port=5000):
+def run(host='0.0.0.0', port=5000):  # nosec B104 - a server: listens on all interfaces by design
     # Emoji log lines must not crash on non-UTF-8 consoles (e.g. Windows cp1252)
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -1084,7 +1121,7 @@ def run(host='0.0.0.0', port=5000):
     print(f"🌐 Listening on: {host}:{port}")
     print("=" * 60)
     print("MQTT LOGGING: Runs 24/7 without GUI/Login")
-    print("GUI ACCESS: Requires login (admin/admin123)")
+    print("GUI ACCESS: Requires login (change the admin password after the first sign-in)")
     print("=" * 60)
 
     init_db()
@@ -1101,4 +1138,4 @@ def run(host='0.0.0.0', port=5000):
 
 
 if __name__ == '__main__':
-    run(host=os.getenv('HOST', '0.0.0.0'), port=env_int('PORT', 5000))
+    run(host=os.getenv('HOST', '0.0.0.0'), port=env_int('PORT', 5000))  # nosec B104 - set HOST to narrow it

@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="SenseHive Banner"/>
 </p>
 
-![Release](https://img.shields.io/badge/release-v1.3.0-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white)
+![Release](https://img.shields.io/badge/release-v1.4.0-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white)
 
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
@@ -28,8 +28,10 @@
 
 ## Index
 
+- [Documentation](#documentation)
 - [Quick Start (30 seconds)](#quick-start-30-seconds)
 - [Dashboard Preview](#dashboard-preview)
+- [What's New in v1.4](#whats-new-in-v14)
 - [Key Features](#key-features)
 - [What's New in v1.1](#whats-new-in-v11)
 - [Heartbeat receiver (v1.2)](#heartbeat-receiver-v12)
@@ -63,6 +65,20 @@
 
 ---
 
+## Documentation
+
+Full guides live in [`docs/`](docs/README.md):
+[Setup](docs/SETUP.md) |
+[Configuration](docs/CONFIGURATION.md) |
+[Using SenseHive](docs/USING.md) |
+[Heartbeats and EdgeShell](docs/HEARTBEAT.md) |
+[Security](docs/SECURITY.md) |
+[Development and testing](docs/DEVELOPMENT.md) |
+[Architecture decisions](docs/adr/README.md) |
+[Changelog](CHANGELOG.md)
+
+---
+
 ## Quick Start (30 seconds)
 
 Get SenseHive running and visualize MQTT data instantly.
@@ -70,7 +86,8 @@ Get SenseHive running and visualize MQTT data instantly.
 ### 1. Run the Container
 
 ```bash
-docker run -d -p 5000:5000 -v $(pwd)/sensehive-data:/app/data devprincekumar/sense-hive:latest
+docker run -d -p 5000:5000 -v $(pwd)/sensehive-data:/app/data \
+  -e SENSEHIVE_ADMIN_PASSWORD='choose-a-strong-password' devprincekumar/sense-hive:latest
 ```
 
 Prefer no Docker? `pip install sensehive-iot && sensehive`. On Home Assistant OS? Install the [add-on](#home-assistant-add-on-haos).
@@ -83,7 +100,7 @@ Prefer no Docker? `pip install sensehive-iot && sensehive`. On Home Assistant OS
 http://localhost:5000
 ```
 
-Login with default credentials and access the dashboard.
+Sign in as `admin` with the password you chose (or `admin123` if you did not set one, then change it at once in **Settings**).
 
 ---
 
@@ -158,16 +175,26 @@ You can also use the included test script for automated data simulation if neede
 ---
 ## Dashboard Preview
 
+Screenshots are taken from a seeded test install by `tools/screenshots.py`
+(made-up topics, no real data), so they always show the current release.
+
 <p align="center">
-  <img src="assets/login.png" width="60%" style="margin:5px;" />
-  <img src="assets/Main_Dashboard.png" width="60%" style="margin:5px;" />
+  <img src="assets/dashboard.png" width="90%" alt="Dashboard, light theme" />
 </p>
 <p align="center">
-  <img src="assets/settings.png" width="60%" style="margin:5px;" />
+  <img src="assets/login.png" width="45%" alt="Sign-in page" />
+  <img src="assets/dashboard-dark.png" width="45%" alt="Dashboard, dark theme" />
 </p>
 <p align="center">
-  <img src="assets/test-topic.png" width="45%" style="margin:5px;" />
-  <img src="assets/test-script-output.png" width="45%" style="margin:5px;" />
+  <img src="assets/history.png" width="45%" alt="History of a topic" />
+  <img src="assets/settings.png" width="45%" alt="Settings" />
+</p>
+<p align="center">
+  <img src="assets/heartbeats.png" width="60%" alt="Heartbeats page" />
+  <img src="assets/phone.png" width="22%" alt="Dashboard on a phone" />
+</p>
+<p align="center">
+  <img src="assets/test-script-output.png" width="60%" alt="Test publisher output" />
 </p>
 
 ---
@@ -185,6 +212,20 @@ You can also use the included test script for automated data simulation if neede
 | **Data Management**        | Entry count & size per topic · Retention by age/entries · SQLite WAL mode          |
 | **Wildcard Topics**        | `sensors/#` and `home/+/temp` subscriptions are logged                             |
 | **Deployment Flexibility** | Docker (multi-arch amd64 + arm64) · Home Assistant add-on · `pip install` CLI      |
+---
+
+## What's New in v1.4
+
+| Area | Change |
+| ---- | ------ |
+| Look | EdgeShell's theme (colours, font, sign-in card, top bar), light by default, dark remembered and shared with the heartbeats page |
+| Layout | Fits phones, tablets and desktops at 67 to 200 % zoom: top bar wraps into icon buttons, cards and dialogs never overflow, Escape closes dialogs |
+| Security | No CDN: browser code built ahead of time and served by SenseHive under a strict Content Security Policy; topics that could break SQL are refused and table names are always safely quoted; no default password on the sign-in page |
+| Quality | Browser UI test (about 145 checks, every screen size and zoom, light and dark), ruff, Bandit and pip-audit in CI, front-end build check |
+| Docs | Full guides in [`docs/`](docs/README.md) with architecture decision records |
+
+See the [Changelog](CHANGELOG.md).
+
 ---
 
 ## What's New in v1.1
@@ -346,10 +387,16 @@ sequenceDiagram
 ├── version-1.0/              # application (also the `sensehive` pip package)
 │   ├── app.py                # Flask app + MQTT logger
 │   ├── cli.py                # `sensehive` command
-│   ├── templates/            # dashboard + login page
+│   ├── heartbeat.py          # heartbeat receiver + read-only API
+│   ├── security.py           # sign-in hardening
+│   ├── templates/            # dashboard, login and heartbeats pages
+│   ├── static/               # built browser code (committed, no CDN)
 │   ├── requirements.txt
 │   └── Dockerfile
+├── frontend/                 # browser sources (JSX, CSS), built by `npm run build`
+├── tools/                    # front-end build, browser UI test, screenshots
 ├── tests/                    # regression suite (pytest) + legacy DB fixture
+├── docs/                     # guides and architecture decision records
 ├── .github/workflows/        # CI (every PR) and CD (Docker Hub, PyPI, releases)
 ├── Docker-compose/           # compose files for x86 and ARM
 ├── Test-sensehive/           # test publisher script
@@ -375,7 +422,7 @@ docker pull devprincekumar/sense-hive:latest
 ```
 
 * One multi-arch image for AMD64 / x86 and ARM64 (Raspberry Pi 4/5); Docker picks the right one
-* Pin a release with `devprincekumar/sense-hive:1.3.0`; `edge` tracks the `main` branch
+* Pin a release with `devprincekumar/sense-hive:1.4.0`; `edge` tracks the `main` branch
 * `arm-pi-5` remains available and points to the same multi-arch release
 
 ---
@@ -582,8 +629,11 @@ This ensures data persists across container restarts and aligns with Home Assist
 
 ```
 Username: admin
-Password: admin123
+Password: SENSEHIVE_ADMIN_PASSWORD from the first start, otherwise admin123
 ```
+
+Change `admin123` straight after the first sign-in. The sign-in page never shows
+it, and five wrong passwords lock sign-in for 15 minutes.
 
 ---
 
@@ -683,17 +733,20 @@ python test_script.py
 
 ## Testing and CI/CD
 
-Run the regression suite locally:
+Run the suites locally (details in [Development and testing](docs/DEVELOPMENT.md)):
 
 ```bash
 pip install -r version-1.0/requirements.txt pytest
 python -m pytest                                        # unit + API tests
 SENSEHIVE_TEST_BROKER=localhost:1883 python -m pytest   # plus end-to-end against a real broker
+pip install playwright && python -m playwright install chromium
+python tools/ui_test.py                                 # browser UI: every screen size and zoom
+npm ci && npm run check                                 # built front end matches its sources
 ```
 
 | Pipeline | Trigger | What runs |
 | -------- | ------- | --------- |
-| CI | Every pull request and push to `main` | 73 tests on Python 3.9 to 3.13 against a real Mosquitto broker, paho-mqtt 1.x compatibility, wheel build + CLI smoke test, Docker build + container health check |
+| CI | Every pull request and push to `main` | Regression tests on Python 3.9 to 3.13 against a real Mosquitto broker, paho-mqtt 1.x compatibility, browser UI test (phone to desktop, 67 to 200 % zoom, CSP violations), ruff, Bandit, pip-audit, front-end build check, CodeQL, wheel build + CLI smoke test, Docker build + container health check |
 | CD | Push to `main` | Full CI, then publishes `devprincekumar/sense-hive:edge` (amd64 + arm64) |
 | CD | Tag `vX.Y.Z` | Full CI, then publishes `X.Y.Z`, `X.Y`, `latest`, `arm-pi-5`, updates the Docker Hub description, publishes `sensehive-iot` to PyPI and creates a GitHub release |
 
@@ -774,7 +827,11 @@ It is not intended to replace full-scale IoT platforms.
 
 ## Versioning and Release Status
 
-### v1.3 (Current)
+### v1.4 (Current)
+
+* EdgeShell's theme, responsive layout at every screen size and zoom, no CDN with a strict CSP, SQL-safe topic names, browser UI test, full docs and ADRs ([What's New in v1.4](#whats-new-in-v14))
+
+### v1.3
 
 * Sign-in hardening: salted, slow password hashes (old ones upgraded on the next sign-in), lockout after repeated failures per user and per address, a new session on every sign-in, cross-site requests that change data refused, HttpOnly cookies with configurable SameSite, Secure and Path, optional first admin password from the environment
 

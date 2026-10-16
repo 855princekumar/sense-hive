@@ -23,7 +23,7 @@ docker run -d --name sense-hive \
   devprincekumar/sense-hive:latest
 ```
 
-Open http://localhost:5000 and log in with `admin` / `admin123` (change it under
+Open http://localhost:5000 and sign in as `admin` with `SENSEHIVE_ADMIN_PASSWORD` if you set it, otherwise `admin123` (change it under
 **Settings → Account**). The default broker is the public `broker.hivemq.com`; change it
 under **Settings**.
 
@@ -32,7 +32,8 @@ under **Settings**.
 | Tag | Description |
 | --- | ----------- |
 | `latest` | Latest release, multi-arch (amd64 + arm64) |
-| `1.3.0`, `1.3` | SenseHive 1.3.0, multi-arch |
+| `1.4.0`, `1.4` | SenseHive 1.4.0, multi-arch |
+| `1.3.0`, `1.3` | SenseHive 1.3.0 |
 | `1.2.0`, `1.2` | SenseHive 1.2.0 |
 | `1.1.0`, `1.1` | SenseHive 1.1.0 |
 | `arm-pi-5` | Same multi-arch release image; kept for existing Raspberry Pi setups |
@@ -52,9 +53,15 @@ Apple Silicon). Docker picks the right architecture automatically.
 | Device health | Optional LWT/status topic per topic: online/offline per topic and per node, counts in the navbar, pushed live |
 | Stats | Entry count and approximate size per topic, total entries and database size |
 | Data management | Retention by age and/or max entries per topic (hourly, or "Run Cleanup Now"), SQLite WAL mode |
-| Security | Login-protected UI and API, salted slow password hashes, lockout after repeated failed sign-ins, CSRF protection, HttpOnly cookies, persistent random session secret, no data baked into the image |
+| Security | Login-protected UI and API, no CDN and a strict Content Security Policy, SQL-safe topic names, salted slow password hashes, lockout after repeated failed sign-ins, CSRF protection, HttpOnly cookies, persistent random session secret, no data baked into the image |
 | Operations | `/api/health` and `/api/status` endpoints, Docker HEALTHCHECK, timezone-aware timestamps |
 | Heartbeats (1.2) | Optional receiver for the [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service): encrypted, authenticated heartbeats and LWT over a public broker, `/heartbeats` page, read-only API. Off unless `HEARTBEAT_MASTER_KEY` is set |
+
+## What's new in 1.4.0
+
+- EdgeShell's look (light by default, dark remembered), a layout that fits phones to desktops at 67 to 200 % zoom, a Heartbeats link in the top bar
+- Browser code served by SenseHive itself under a strict Content Security Policy (no CDN), SQL-safe topic names, no default password on the sign-in page
+- Browser UI test, ruff, Bandit and pip-audit in CI; full documentation at https://github.com/855princekumar/sense-hive/tree/main/docs
 
 ## What's new in 1.3.0
 

@@ -13,7 +13,7 @@ def build_parser():
         description='SenseHive - lightweight MQTT data logger and dashboard. '
                     'Run -> Add Topic -> Publish -> See Data.',
     )
-    parser.add_argument('--host', default=os.getenv('HOST', '0.0.0.0'),
+    parser.add_argument('--host', default=os.getenv('HOST', '0.0.0.0'),  # nosec B104 - a server; --host narrows it
                         help='interface to listen on (default: 0.0.0.0)')
     parser.add_argument('--port', type=int, default=int(os.getenv('PORT', '5000')),
                         help='port for the web dashboard (default: 5000)')
