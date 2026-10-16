@@ -15,7 +15,7 @@ import queue
 import pytz
 from functools import wraps
 
-__version__ = '1.4.0'
+__version__ = '1.4.1'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
@@ -800,7 +800,25 @@ def test_broker():
         test_client.disconnect()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        app.logger.warning('Broker test to %s:%s failed: %r', data.get('host'), data.get('port'), e)
+        return jsonify({'success': False, 'error': broker_error_text(e)})
+
+
+def broker_error_text(error):
+    """A fixed, user-facing reason for a failed broker connection (never the
+    exception text itself; the details go to the server log)."""
+    import socket
+    if isinstance(error, ConnectionRefusedError):
+        return 'Connection refused: nothing is listening on that host and port'
+    if isinstance(error, socket.gaierror):
+        return 'Host name not found'
+    if isinstance(error, (socket.timeout, TimeoutError)):
+        return 'Timed out: the broker did not answer'
+    if isinstance(error, OSError):
+        return 'Network error: the broker could not be reached'
+    if isinstance(error, ValueError):
+        return 'Invalid host or port'
+    return 'Could not connect to the broker'
 
 
 @app.route('/api/settings/retention', methods=['GET', 'POST'])
@@ -1058,8 +1076,9 @@ def export_node(node_id):
                 mimetype='text/csv',
                 headers={'Content-Disposition': f'attachment; filename={topic.replace("/", "_")}.csv'}
             )
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        except Exception:
+            app.logger.exception('CSV export of node %s failed', node_id)
+            return jsonify({'error': 'Export failed; see the server log'}), 500
 
 
 # ============================================================================

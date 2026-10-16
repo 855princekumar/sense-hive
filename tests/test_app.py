@@ -406,6 +406,13 @@ def test_broker_test_reports_failure(client):
     assert res['success'] is False and res['error']
 
 
+def test_broker_errors_are_fixed_messages_not_exception_text(sh):
+    import socket
+    assert sh.broker_error_text(ConnectionRefusedError(111, 'secret detail')).startswith('Connection refused')
+    assert sh.broker_error_text(socket.gaierror('secret detail')) == 'Host name not found'
+    assert 'secret' not in sh.broker_error_text(RuntimeError('secret detail'))
+
+
 def test_timezones_listed(client):
     assert 'Asia/Kolkata' in client.get('/api/timezones').get_json()['timezones']
 

@@ -32,7 +32,8 @@ under **Settings**.
 | Tag | Description |
 | --- | ----------- |
 | `latest` | Latest release, multi-arch (amd64 + arm64) |
-| `1.4.0`, `1.4` | SenseHive 1.4.0, multi-arch |
+| `1.4.1`, `1.4` | SenseHive 1.4.1, multi-arch |
+| `1.4.0` | SenseHive 1.4.0 |
 | `1.3.0`, `1.3` | SenseHive 1.3.0 |
 | `1.2.0`, `1.2` | SenseHive 1.2.0 |
 | `1.1.0`, `1.1` | SenseHive 1.1.0 |
