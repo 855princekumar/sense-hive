@@ -29,6 +29,18 @@ Two cards at the top choose what you see, with a short fade between them:
 The address follows the choice (`?view=heartbeats`), so a bookmark opens the
 right view.
 
+Each card has an **(i)** button in its corner: a short guide to what the view
+is for and how to use it, step by step. The Heartbeats guide links to the
+[heartbeat agent's repository](https://github.com/855princekumar/mqtt-heartbeat-service)
+(in a new tab) for installing the agent on nodes.
+
+**Filter by status** in either view:
+
+| View | Status filter |
+| ---- | ------------- |
+| Topic logs | All, Online (active), Offline (inactive), No last will |
+| Heartbeats | All, Online, Offline, Silent (with the count of each) |
+
 - **Top bar:** broker connection, online/offline counts of nodes and topics
   (wide screens), **Add Node**, **Settings**, light/dark theme
   (remembered in this browser) and **Sign out**. On a phone the buttons become

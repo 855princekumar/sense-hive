@@ -71,6 +71,71 @@ No CDN is contacted, there is no inline script and no `eval`, so a compromised
 third-party host cannot run code in SenseHive, or in a site that serves it on
 the same origin. The browser UI test fails on any CSP violation.
 
+## Deploying securely
+
+![Deploying SenseHive securely](assets/secure-deployment.svg)
+
+**One domain, port 443, through a TLS proxy.** SenseHive's own port (5000) is
+never published to the internet: bind it to `127.0.0.1` or keep it on a private
+Docker network, and let a reverse proxy (nginx, Caddy, Traefik) terminate TLS.
+
+1. **DNS**: an `A` record such as `hive.example.com` pointing to the server's
+   static IP. Optionally a `CAA` record allowing only your certificate
+   authority (for example `0 issue "letsencrypt.org"`).
+2. **Firewall**: inbound 443 (and 80 for certificate renewal) only. SSH from
+   your own address or over a VPN.
+3. **TLS**: a Let's Encrypt certificate with automatic renewal, TLS 1.2 and 1.3,
+   HSTS.
+4. **SenseHive** with `SENSEHIVE_COOKIE_SECURE=true`,
+   `SENSEHIVE_COOKIE_SAMESITE=Strict` and `SENSEHIVE_TRUST_PROXY=true`, its
+   secrets in `.env` (mode 0600).
+5. **MQTT** connections are outbound: your data broker with a username and
+   password (TLS 8883 when it is not on your LAN), and the heartbeat broker
+   over TLS when the receiver is on.
+
+Compose, published to the host's loopback only:
+
+```yaml
+services:
+  sensehive:
+    image: devprincekumar/sense-hive:latest
+    ports:
+      - "127.0.0.1:5000:5000"
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+```
+
+An nginx server block in front of it:
+
+```nginx
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name hive.example.com;
+    ssl_certificate     /etc/letsencrypt/live/hive.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/hive.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    add_header Strict-Transport-Security "max-age=63072000" always;
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;                      # live updates (server-sent events)
+        proxy_read_timeout 3600s;
+    }
+}
+```
+
+Check it from outside: `curl -s https://hive.example.com/api/health` answers
+`{"status": "healthy", ...}` without a version, and a port scan shows only 80
+and 443.
+
+Running SenseHive inside [EdgeShell](https://github.com/855princekumar/edgeshell)?
+EdgeShell's nginx already does all of this at `/sensehive/`, behind its own
+sign-in and a fresh 2FA code.
+
 ## Behind a reverse proxy
 
 - Set `SENSEHIVE_TRUST_PROXY=true` only when the proxy sets `X-Real-IP`;

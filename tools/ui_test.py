@@ -273,6 +273,8 @@ def run_layout(pw, base, rep, configs, dark=False):
         page.goto(base + '/')
         page.wait_for_selector('.sh-card')
 
+        check_dialog(page, rep, tag, 'topic logs guide', ['#infoTopics'])
+        check_dialog(page, rep, tag, 'heartbeats guide', ['#infoHeartbeats'])
         check_dialog(page, rep, tag, 'settings dialog', ['[title="Settings"]'])
         check_dialog(page, rep, tag, 'add-node dialog', ['#addNodeBtn'])
         check_dialog(page, rep, tag, 'topic history dialog', ['.sh-card >> text=Details'])
@@ -315,6 +317,16 @@ def run_interactions(pw, base, rep, label, w, h, scale):
     rep.check(f'{label}: the tag filter narrows the cards', page.locator('.sh-card').count() == 2,
               page.locator('.sh-card').count(), page)
     page.select_option('#tagFilter', 'all')
+    for status, want in (('active', 2), ('inactive', 2)):
+        page.select_option('#statusFilter', status)
+        page.wait_for_timeout(300)
+        rep.check(f'{label}: the status filter shows {status} topics only', page.locator('.sh-card').count() == want,
+                  page.locator('.sh-card').count(), page)
+    page.select_option('#statusFilter', 'untracked')
+    page.wait_for_timeout(300)
+    rep.check(f'{label}: the status filter shows topics without a last will', page.locator('.sh-card').count() >= 2,
+              page.locator('.sh-card').count(), page)
+    page.select_option('#statusFilter', 'all')
     page.select_option('#sortBy', 'name')
     page.wait_for_timeout(300)
     first = page.locator('.sh-card h3').first.inner_text()
@@ -339,6 +351,20 @@ def run_interactions(pw, base, rep, label, w, h, scale):
     rep.check(f'{label}: the nav bar has no separate heartbeats button', page.locator('#heartbeatsLink').count() == 0, '', page)
     hb_card = page.inner_text('#viewHeartbeats')
     rep.check(f'{label}: the heartbeats card counts the nodes', f'{len(HB_NODES)} nodes' in hb_card, hb_card, page)
+    page.click('#infoTopics')
+    page.wait_for_selector('#guideBody')
+    rep.check(f'{label}: the topic logs guide explains adding a topic', 'Add Node' in page.inner_text('#guideBody'), '', page)
+    rep.check(f'{label}: the info button does not switch the view', 'view=heartbeats' not in page.url, page.url, page)
+    page.keyboard.press('Escape')
+    page.click('#infoHeartbeats')
+    page.wait_for_selector('#guideLink')
+    link = page.locator('#guideLink')
+    rep.check(f'{label}: the heartbeats guide links the agent repository in a new tab',
+              link.get_attribute('href') == 'https://github.com/855princekumar/mqtt-heartbeat-service'
+              and link.get_attribute('target') == '_blank' and 'noopener' in (link.get_attribute('rel') or ''),
+              link.get_attribute('href'), page)
+    page.locator('.sh-modal button', has_text='Got it').click()
+    rep.check(f'{label}: the guide closes', page.locator('.sh-modal').count() == 0, '', page)
     page.click('#viewHeartbeats')
     page.wait_for_selector('#hbTable tbody tr')
     settle(page)
@@ -349,6 +375,13 @@ def run_interactions(pw, base, rep, label, w, h, scale):
     rep.check(f'{label}: the heartbeats view lists every node', rows == len(HB_NODES), rows, page)
     for state in ('online', 'offline', 'silent'):
         rep.check(f'{label}: a {state} heartbeat node is shown', page.locator(f'.hb-state[data-state="{state}"]').count() >= 1, '', page)
+    for state, want in (('online', 2), ('offline', 1), ('silent', 1)):
+        page.select_option('#hbState', state)
+        page.wait_for_timeout(300)
+        shown = page.locator('#hbTable tbody tr').count()
+        same = page.locator(f'.hb-state[data-state="{state}"]').count()
+        rep.check(f'{label}: the heartbeat status filter shows {state} nodes only', shown == want == same, (shown, same), page)
+    page.select_option('#hbState', 'all')
 
     page.locator('.hb-history').first.click()
     page.wait_for_selector('.sh-modal svg')

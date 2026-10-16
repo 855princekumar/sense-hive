@@ -239,10 +239,12 @@
         const [open, setOpen] = useState(null);
         const [what, setWhat] = useState('beats');
         const [period, setPeriod] = useState('86400');
+        const [state, setState] = useState('all');                 // all | online | offline | silent
         const load = useCallback(() => fetch('api/heartbeat/nodes').then((r) => r.json()).then(setInfo).catch(() => {}), []);
         useEffect(() => { load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [load]);
-        const nodes = info ? info.nodes : [];
-        const counts = useMemo(() => nodes.reduce((c, n) => (c[n.status] = (c[n.status] || 0) + 1, c), {}), [nodes]);
+        const all = info ? info.nodes : [];
+        const counts = useMemo(() => all.reduce((c, n) => (c[n.status] = (c[n.status] || 0) + 1, c), {}), [all]);
+        const nodes = state === 'all' ? all : all.filter((n) => n.status === state);
         const allOn = nodes.length > 0 && nodes.every((n) => selected.has(n.name));
         const toggle = (name) => setSelected((s) => { const n = new Set(s); n.has(name) ? n.delete(name) : n.add(name); return n; });
         const field = `px-2 py-1.5 rounded-lg border ${borderClass} ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`;
@@ -254,6 +256,14 @@
                     <span className="text-gray-500 mr-auto min-w-0">
                         {!info.enabled ? 'Receiver off: set HEARTBEAT_MASTER_KEY' : info.connected ? 'Connected to the heartbeat broker' : 'Not connected to the heartbeat broker'}
                     </span>
+                    <label className="flex items-center gap-2 text-gray-500">Status
+                        <select id="hbState" value={state} onChange={(e) => setState(e.target.value)} className={field}>
+                            <option value="all">All ({all.length})</option>
+                            <option value="online">Online ({counts.online || 0})</option>
+                            <option value="offline">Offline ({counts.offline || 0})</option>
+                            <option value="silent">Silent ({counts.silent || 0})</option>
+                        </select>
+                    </label>
                     <label className="flex items-center gap-2 text-gray-500">Export
                         <select id="hbWhat" value={what} onChange={(e) => setWhat(e.target.value)} className={field}>
                             <option value="beats">every heartbeat</option>
@@ -279,7 +289,7 @@
 
                 {nodes.length === 0 ? (
                     <div className="text-center py-16 text-gray-500">
-                        No heartbeats yet. Nodes appear here by themselves on their first heartbeat.
+                        {all.length ? 'No node is ' + state + ' right now.' : 'No heartbeats yet. Nodes appear here by themselves on their first heartbeat.'}
                     </div>
                 ) : (
                     <div className={`${cardBg} border ${borderClass} rounded-xl overflow-x-auto`}>
@@ -328,7 +338,7 @@
                     </div>
                 )}
                 <p className="text-xs text-gray-500">
-                    {nodes.length} nodes: {counts.online || 0} online, {counts.silent || 0} silent, {counts.offline || 0} offline.
+                    {all.length} nodes: {counts.online || 0} online, {counts.silent || 0} silent, {counts.offline || 0} offline.
                     Every heartbeat is kept for 48 hours, online minutes and status changes for 30 days.
                 </p>
                 {open && <History node={open} dark={darkMode} cardBg={cardBg} borderClass={borderClass} onClose={() => setOpen(null)} />}

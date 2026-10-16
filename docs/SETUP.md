@@ -26,7 +26,7 @@ Open `http://<host>:5000` and sign in as `admin` with the password you chose.
 - Without the volume (`-v`), data is lost when the container is removed.
 - Tags: `latest` and `X.Y.Z` for releases, `edge` for the newest `main`.
   The images are multi-arch, so the same tag works on a Raspberry Pi.
-- The image runs as a non-root user and ships no database; a health check
+- The image ships no database and no secrets; a health check
   calls `/api/health`.
 
 ## Docker Compose

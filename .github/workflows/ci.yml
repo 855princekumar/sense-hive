@@ -188,7 +188,7 @@ jobs:
       - run: pip install -r version-1.0/requirements.txt playwright==1.55.0
       - run: python -m playwright install --with-deps chromium
       - name: Every page and dialog on every screen size and zoom, plus interactions
-        run: python -W ignore tools/ui_test.py --out ui-report --min-checks 270
+        run: python -W ignore tools/ui_test.py --out ui-report --min-checks 340
       - name: Screenshots of failures
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7

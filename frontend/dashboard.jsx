@@ -69,6 +69,36 @@
             )
         };
 
+        // The in-app guides behind the (i) buttons of the two views.
+        const AGENT_REPO = 'https://github.com/855princekumar/mqtt-heartbeat-service';
+        const GUIDES = {
+            topics: {
+                title: 'Topic logs',
+                intro: 'SenseHive subscribes to the MQTT topics you add, on the broker set in Settings, and keeps every message with its time. Each topic is a card with its latest value.',
+                steps: [
+                    ['Connect a broker', 'Settings: host, port and, if needed, username and password. Test Connection, then Save All. The dot in the top bar turns green.'],
+                    ['Add a topic', 'Add Node: the MQTT topic (wildcards work: sensors/# or home/+/temp), a node ID to group topics of one device, and a tag. Optional: the device\'s last-will topic for online and offline status.'],
+                    ['Read the data', 'Cards update live. Details shows the last 50 values; the download button exports every stored value as CSV; the gear edits tag, node and last will.'],
+                    ['Find your way', 'Filter by tag, sort (newest, name, status, entries, size) or group the cards by node.'],
+                    ['Keep it tidy', 'Settings, Data Retention: keep values for a number of days or a number of entries per topic.'],
+                ],
+                tips: ['JSON payloads are shown as fields; anything else as text.', 'Messages over 64 KB are dropped to protect the disk.'],
+            },
+            heartbeats: {
+                title: 'Heartbeats',
+                intro: 'Edge nodes running the MQTT heartbeat agent send an encrypted heartbeat every 10 seconds and leave a last will. SenseHive finds them by itself: there is nothing to add here.',
+                steps: [
+                    ['Turn the receiver on', 'Start SenseHive with HEARTBEAT_MASTER_KEY (64 hex characters) and, for other tools, HEARTBEAT_API_TOKEN. The card then shows the node counts.'],
+                    ['Install the agent', 'On each node: EdgeShell Fleet Setup does it for you, or run install.sh with the node\'s agent.env (see the agent guide below).'],
+                    ['Watch the states', 'online: heartbeats arriving; offline: the node\'s last will arrived; silent: nothing heard, usually the broker or the internet path.'],
+                    ['See the history', 'History on a node: charts for 1 minute to 30 days, breaks in red, uptime and delivery delay.'],
+                    ['Export', 'Tick nodes (or all) and export every heartbeat, online minutes or status changes as CSV.'],
+                ],
+                tips: ['Messages are AES-256-GCM encrypted per node, on topics that change every 10 minutes.', 'Other tools can read the same data through the read-only API with the bearer token.'],
+                link: ['Agent setup guide and source (opens GitHub)', AGENT_REPO],
+            },
+        };
+
         const IoTDashboard = () => {
             // Light by default, like EdgeShell; the choice is remembered in this browser.
             const [darkMode, setDarkMode] = useState(() => {
@@ -89,7 +119,7 @@
             useEffect(() => {
                 const onKey = (e) => {
                     if (e.key !== 'Escape') return;
-                    setShowAddNode(false); setShowSettings(false); setShowDetails(null); setShowPasswordChange(false);
+                    setShowAddNode(false); setShowSettings(false); setShowDetails(null); setShowPasswordChange(false); setGuide(null);
                 };
                 window.addEventListener('keydown', onKey);
                 return () => window.removeEventListener('keydown', onKey);
@@ -100,6 +130,7 @@
                 catch (e) { return 'topics'; }
             });
             const [leaving, setLeaving] = useState(false);
+            const [guide, setGuide] = useState(null);
             const [hbSummary, setHbSummary] = useState(null);
             const switchView = (next) => {
                 if (next === view || leaving) return;
@@ -124,6 +155,7 @@
             const [formError, setFormError] = useState('');
             const [stats, setStats] = useState(null);
             const [filterTag, setFilterTag] = useState('all');
+            const [filterStatus, setFilterStatus] = useState('all');   // all | active | inactive | untracked
             const [sortBy, setSortBy] = useState('created');
             const [groupByNode, setGroupByNode] = useState(false);
             const [timezones, setTimezones] = useState([]);
@@ -245,6 +277,8 @@
 
             const visibleNodes = nodes
                 .filter(node => filterTag === 'all' || node.tag === filterTag)
+                .filter(node => filterStatus === 'all' || (node.status || 'untracked') === filterStatus
+                    || (filterStatus === 'untracked' && !STATUS_STYLES[node.status]))
                 .slice()
                 .sort((a, b) => {
                     switch (sortBy) {
@@ -629,8 +663,9 @@
 
                     <div className="max-w-7xl mx-auto p-4 sm:p-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6" role="tablist" aria-label="Views">
+                            <div className="relative min-w-0 sh-fade-up">
                             <button id="viewTopics" role="tab" aria-selected={view === 'topics'} onClick={() => switchView('topics')}
-                                className={`sh-view-card sh-fade-up text-left ${cardBg} border rounded-xl p-4 sm:p-5 min-w-0 ${view === 'topics' ? 'border-blue-600 ring-2 ring-blue-500 ring-opacity-30' : borderClass}`}>
+                                className={`sh-view-card w-full h-full text-left ${cardBg} border rounded-xl p-4 sm:p-5 pr-12 sm:pr-14 min-w-0 ${view === 'topics' ? 'border-blue-600 ring-2 ring-blue-500 ring-opacity-30' : borderClass}`}>
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center flex-shrink-0">
                                         <Icons.Activity className="w-5 h-5" />
@@ -647,9 +682,17 @@
                                     {stats && <span className="flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-red-500" />{stats.topics.inactive} inactive</span>}
                                 </div>
                             </button>
+                                <button id="infoTopics" type="button" title="What is Topic logs? How to use it" aria-label="Guide: Topic logs"
+                                    onClick={() => setGuide('topics')}
+                                    className={`sh-info absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center border ${borderClass} ${darkMode ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-white hover:bg-gray-100 text-gray-500'} transition-colors`}>
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                                        <circle cx="12" cy="12" r="10" /><path d="M12 16v-5" /><path d="M12 8h.01" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div className="relative min-w-0 sh-fade-up" style={{ animationDelay: '70ms' }}>
                             <button id="viewHeartbeats" role="tab" aria-selected={view === 'heartbeats'} onClick={() => switchView('heartbeats')}
-                                style={{ animationDelay: '70ms' }}
-                                className={`sh-view-card sh-fade-up text-left ${cardBg} border rounded-xl p-4 sm:p-5 min-w-0 ${view === 'heartbeats' ? 'border-blue-600 ring-2 ring-blue-500 ring-opacity-30' : borderClass}`}>
+                                className={`sh-view-card w-full h-full text-left ${cardBg} border rounded-xl p-4 sm:p-5 pr-12 sm:pr-14 min-w-0 ${view === 'heartbeats' ? 'border-blue-600 ring-2 ring-blue-500 ring-opacity-30' : borderClass}`}>
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-lg bg-green-500 text-white flex items-center justify-center flex-shrink-0">
                                         <Icons.CheckCircle className="w-5 h-5" />
@@ -672,6 +715,14 @@
                                     )}
                                 </div>
                             </button>
+                                <button id="infoHeartbeats" type="button" title="What is Heartbeats? How to use it" aria-label="Guide: Heartbeats"
+                                    onClick={() => setGuide('heartbeats')}
+                                    className={`sh-info absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center border ${borderClass} ${darkMode ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-white hover:bg-gray-100 text-gray-500'} transition-colors`}>
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                                        <circle cx="12" cy="12" r="10" /><path d="M12 16v-5" /><path d="M12 8h.01" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
 
                         <div key={view} className={`sh-view sh-fade-up ${leaving ? 'is-leaving' : ''}`}>
@@ -697,6 +748,19 @@
                                     >
                                         <option value="all">All tags</option>
                                         {allTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}
+                                    </select>
+                                </label>
+                                <label className="flex items-center gap-2 text-gray-500">
+                                    Status
+                                    <select id="statusFilter"
+                                        value={filterStatus}
+                                        onChange={(e) => setFilterStatus(e.target.value)}
+                                        className={`px-2 py-1 rounded-lg border ${borderClass} ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}
+                                    >
+                                        <option value="all">All</option>
+                                        <option value="active">Online (active)</option>
+                                        <option value="inactive">Offline (inactive)</option>
+                                        <option value="untracked">No last will</option>
                                     </select>
                                 </label>
                                 <label className="flex items-center gap-2 text-gray-500">
@@ -735,7 +799,7 @@
                                 </button>
                             </div>
                         ) : visibleNodes.length === 0 ? (
-                            <div className="text-center py-20 text-gray-500">No topics match the selected tag</div>
+                            <div className="text-center py-20 text-gray-500">No topics match the selected tag and status</div>
                         ) : nodeGroups.map(([groupName, groupNodes]) => (
                             <div key={groupName || 'all'} className="mb-8">
                                 {groupName !== null && (
@@ -1121,6 +1185,48 @@
                                     >
                                         Cancel
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {guide && GUIDES[guide] && (
+                        <div className="sh-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4" onClick={() => setGuide(null)}>
+                            <div className={`sh-modal ${cardBg} rounded-xl max-w-lg w-full min-w-0`} role="dialog" aria-modal="true"
+                                aria-label={'Guide: ' + GUIDES[guide].title} onClick={(e) => e.stopPropagation()}>
+                                <div className={`flex items-start justify-between gap-3 px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex-shrink-0`}>
+                                    <div className="min-w-0">
+                                        <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Guide</div>
+                                        <h2 className="text-xl font-bold">{GUIDES[guide].title}</h2>
+                                    </div>
+                                    <button data-close onClick={() => setGuide(null)} title="Close"
+                                        className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} flex-shrink-0`}>
+                                        <Icons.XCircle className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <div className="sh-modal-body px-5 sm:px-6 pb-2 space-y-4 text-sm" id="guideBody">
+                                    <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>{GUIDES[guide].intro}</p>
+                                    <ol className="space-y-3">
+                                        {GUIDES[guide].steps.map(([head, text], i) => (
+                                            <li key={i} className="flex gap-3">
+                                                <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                                                <span className="min-w-0"><b>{head}.</b> <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>{text}</span></span>
+                                            </li>
+                                        ))}
+                                    </ol>
+                                    <ul className={`list-disc pl-5 space-y-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                        {GUIDES[guide].tips.map((t, i) => <li key={i}>{t}</li>)}
+                                    </ul>
+                                </div>
+                                <div className={`flex flex-wrap items-center justify-end gap-2 px-5 sm:px-6 py-4 border-t ${borderClass} flex-shrink-0`}>
+                                    {GUIDES[guide].link && (
+                                        <a id="guideLink" href={GUIDES[guide].link[1]} target="_blank" rel="noopener noreferrer"
+                                            className="mr-auto text-sm font-medium text-blue-600 hover:underline">
+                                            {GUIDES[guide].link[0]}
+                                        </a>
+                                    )}
+                                    <button onClick={() => setGuide(null)}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Got it</button>
                                 </div>
                             </div>
                         </div>

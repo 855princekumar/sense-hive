@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.6.0 (2026-10-16)
+
+**Interface**
+- An (i) button on the Topic logs and Heartbeats cards opens a guide: what the
+  view is for, how to use it step by step, and tips. The Heartbeats guide links
+  to the heartbeat agent's repository in a new tab.
+- Filter by status: topics by online (active), offline (inactive) or no last
+  will; heartbeat nodes by online, offline or silent, with the count of each.
+
+**Documentation**
+- [Deploying securely](docs/SECURITY.md#deploying-securely) with a diagram:
+  DNS, firewall, TLS proxy, SenseHive's port on loopback only, an nginx example
+  and checks from outside.
+- The setup guide no longer claims the container runs as a non-root user (it
+  does not yet); keep the port private and the data volume on the host.
+
 ## 1.5.0 (2026-10-16)
 
 **Heartbeat history**

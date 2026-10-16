@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" font-family="Segoe UI,Roboto,Helvetica,Arial,sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">Deploying SenseHive securely</title>
+  <desc id="desc">Browsers reach SenseHive only through a TLS reverse proxy on port 443 under one domain. SenseHive's own port stays private. It connects outbound to the data broker and, when enabled, to the heartbeat broker over TLS. Other tools read heartbeats through the read-only API with a bearer token over the same proxy or a private network.</desc>
+  <defs>
+    <marker id="b" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1a56db"/></marker>
+    <marker id="o" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#d97706"/></marker>
+    <marker id="s" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#334155"/></marker>
+    <style>
+      .tt{font-size:15px;font-weight:700;fill:#0f172a}
+      .t{font-size:12.5px;font-weight:700;fill:#0f172a}
+      .lbl{font-size:11px;fill:#475569}
+      .mut{font-size:11px;fill:#64748b}
+      .mono{font-size:11px;fill:#0f172a;font-family:Consolas,Menlo,monospace}
+      .hd{font-size:13px;font-weight:700;fill:#fff}
+    </style>
+  </defs>
+  <rect width="1000" height="560" fill="#f8fafc"/>
+  <text x="30" y="34" class="tt" font-size="18">Deploying SenseHive securely</text>
+  <text x="30" y="54" class="mut">One domain on 443 through a TLS proxy; SenseHive's own port stays private; MQTT connections go outbound. Example names only.</text>
+
+  <rect x="30" y="80" width="190" height="150" rx="12" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="125" y="108" class="tt" text-anchor="middle">Browsers</text>
+  <text x="125" y="130" class="lbl" text-anchor="middle">sign-in, lockout after 5</text>
+  <text x="125" y="146" class="lbl" text-anchor="middle">strict CSP, no CDN</text>
+  <text x="125" y="162" class="lbl" text-anchor="middle">HttpOnly, Secure cookies</text>
+  <text x="125" y="196" class="mono" text-anchor="middle">https://hive.example.com</text>
+
+  <rect x="30" y="250" width="190" height="110" rx="12" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="125" y="278" class="tt" text-anchor="middle">Other tools</text>
+  <text x="125" y="300" class="lbl" text-anchor="middle">Grafana, Node-RED,</text>
+  <text x="125" y="316" class="lbl" text-anchor="middle">Home Assistant, scripts</text>
+  <text x="125" y="340" class="mono" text-anchor="middle">Bearer HEARTBEAT_API_TOKEN</text>
+
+  <line x1="220" y1="155" x2="276" y2="155" stroke="#1a56db" stroke-width="2.5" marker-end="url(#b)"/>
+  <text x="248" y="146" class="lbl" text-anchor="middle" font-weight="700">443</text>
+  <line x1="220" y1="305" x2="276" y2="305" stroke="#1a56db" stroke-width="2" marker-end="url(#b)"/>
+  <text x="248" y="296" class="lbl" text-anchor="middle">443</text>
+
+  <rect x="280" y="80" width="400" height="440" rx="14" fill="#fff" stroke="#1a56db" stroke-width="2"/>
+  <path d="M294,80 H666 A14,14 0 0 1 680,94 V116 H280 V94 A14,14 0 0 1 294,80 Z" fill="#1a56db"/>
+  <text x="296" y="103" class="hd">Server: inbound 443 (and 80 for certificates) only</text>
+
+  <rect x="298" y="130" width="364" height="96" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+  <text x="312" y="152" class="t">Reverse proxy (nginx, Caddy, Traefik)</text>
+  <text x="312" y="170" class="lbl">TLS certificate (Let's Encrypt), HSTS</text>
+  <text x="312" y="186" class="lbl">sets X-Real-IP; SenseHive trusts it only with</text>
+  <text x="312" y="202" class="mono">SENSEHIVE_TRUST_PROXY=true</text>
+  <text x="312" y="218" class="lbl">optional: a sub-path with SENSEHIVE_COOKIE_PATH</text>
+
+  <line x1="480" y1="226" x2="480" y2="248" stroke="#334155" stroke-width="2" marker-end="url(#s)"/>
+  <rect x="298" y="250" width="364" height="140" rx="8" fill="#eff6ff" stroke="#1a56db" stroke-width="1.5"/>
+  <text x="312" y="272" class="t">SenseHive (container)</text>
+  <text x="312" y="290" class="mono">:5000 published to 127.0.0.1 only, or not at all</text>
+  <text x="312" y="308" class="lbl">no secrets and no database in the image</text>
+  <text x="312" y="324" class="lbl">SQLite in its own volume; backups are one file</text>
+  <text x="312" y="340" class="lbl">security headers, 1 MB request limit, 64 KB payload cap</text>
+  <text x="312" y="356" class="lbl">version shown only to signed-in users and tokens</text>
+  <text x="312" y="378" class="mono">SENSEHIVE_COOKIE_SECURE=true  SAMESITE=Strict</text>
+
+  <rect x="298" y="404" width="364" height="100" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="312" y="426" class="t">.env (mode 0600, never committed)</text>
+  <text x="312" y="444" class="mono">SENSEHIVE_ADMIN_PASSWORD  SECRET_KEY</text>
+  <text x="312" y="460" class="mono">DEFAULT_BROKER_PASSWORD</text>
+  <text x="312" y="476" class="mono">HEARTBEAT_MASTER_KEY  HEARTBEAT_API_TOKEN</text>
+  <text x="312" y="494" class="lbl">rotate any value that was ever pasted elsewhere</text>
+
+  <line x1="680" y1="300" x2="728" y2="230" stroke="#334155" stroke-width="2" marker-end="url(#s)"/>
+  <line x1="680" y1="350" x2="728" y2="410" stroke="#d97706" stroke-width="2" marker-end="url(#o)"/>
+  <text x="704" y="320" class="lbl" text-anchor="middle">out</text>
+
+  <rect x="730" y="150" width="240" height="130" rx="12" fill="#fff" stroke="#334155" stroke-width="1.5"/>
+  <text x="746" y="174" class="t">Data broker (yours)</text>
+  <text x="746" y="194" class="lbl">Mosquitto, EMQX, HiveMQ...</text>
+  <text x="746" y="210" class="lbl">username and password,</text>
+  <text x="746" y="226" class="lbl">TLS 8883 when it leaves the LAN</text>
+  <text x="746" y="250" class="lbl">devices publish here; SenseHive</text>
+  <text x="746" y="266" class="lbl">subscribes to the topics you add</text>
+
+  <rect x="730" y="330" width="240" height="190" rx="12" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+  <text x="746" y="354" class="t">Heartbeat broker (TLS 8883)</text>
+  <text x="746" y="374" class="lbl">only with HEARTBEAT_MASTER_KEY</text>
+  <text x="746" y="390" class="lbl">AES-256-GCM per node,</text>
+  <text x="746" y="406" class="lbl">topics rotate every 10 minutes</text>
+  <text x="746" y="430" class="t">Edge nodes</text>
+  <text x="746" y="450" class="lbl">MQTT heartbeat agent, outbound</text>
+  <text x="746" y="466" class="lbl">only, its own key, no inbound port</text>
+  <text x="746" y="490" class="mono">github.com/855princekumar/</text>
+  <text x="746" y="506" class="mono">mqtt-heartbeat-service</text>
+</svg>
