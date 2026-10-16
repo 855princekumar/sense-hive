@@ -34,14 +34,24 @@
         if (span <= 86400) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
+    const WHATS = ['beats', 'minutes', 'events'];
+    // Only known values reach the URL, every value is encoded, and the link can only
+    // point at this SenseHive (same origin): nothing from the page can steer it.
     function exportUrl(names, what, seconds) {
         const now = Math.floor(Date.now() / 1000);
-        const nodes = names === 'all' ? 'all' : names.map(encodeURIComponent).join(',');
-        return `api/heartbeat/export.csv?nodes=${nodes}&what=${what}&since=${now - seconds}&until=${now}`;
+        const span = Math.max(60, Math.min(Math.floor(Number(seconds)) || 86400, 31 * 86400));
+        const q = new URLSearchParams();
+        q.set('nodes', names === 'all' ? 'all' : names.join(','));
+        q.set('what', WHATS.includes(what) ? what : 'beats');
+        q.set('since', String(now - span));
+        q.set('until', String(now));
+        return 'api/heartbeat/export.csv?' + q.toString();
     }
-    function download(url) {
+    function download(path) {
+        const url = new URL(path, window.location.href);
+        if (url.origin !== window.location.origin || !url.pathname.endsWith('/api/heartbeat/export.csv')) return;
         const a = document.createElement('a');
-        a.href = url; a.rel = 'noopener'; a.download = '';
+        a.href = url.href; a.rel = 'noopener'; a.download = '';
         document.body.appendChild(a); a.click(); a.remove();
     }
 
