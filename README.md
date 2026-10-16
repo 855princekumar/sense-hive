@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="SenseHive Banner"/>
 </p>
 
-![Release](https://img.shields.io/badge/release-v1.4.2-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white)
+![Release](https://img.shields.io/badge/release-v1.4.2-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell)
 
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
@@ -269,6 +269,10 @@ uptime and LWT status on its node cards) or **any other tool** that reads JSON
   computes the fleet's rotating topics itself, derives each sender's key from
   the key id in the message, and records a node on its **first valid
   heartbeat**. There is no node list to maintain and no topic to add.
+- **The agent** for the nodes lives in its own repository,
+  [mqtt-heartbeat-service](https://github.com/855princekumar/mqtt-heartbeat-service),
+  with its architecture, lifecycle and a setup guide
+  ([docs/SETUP.md](https://github.com/855princekumar/mqtt-heartbeat-service/blob/main/docs/SETUP.md)).
 - **The MQTT logger keeps working as before**: add topics with **Add Node** and
   watch them on the dashboard; the receiver uses its own connection and tables.
 
