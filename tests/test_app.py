@@ -49,7 +49,8 @@ def test_login_logout_and_bad_credentials(sh):
 
 def test_change_password(client, sh):
     assert client.post('/api/change-password', json={'current_password': 'wrong', 'new_password': 'x' * 8}).status_code == 401
-    assert client.post('/api/change-password', json={'current_password': 'admin123', 'new_password': 'secret99'}).get_json()['success']
+    changed = client.post('/api/change-password', json={'current_password': 'admin123', 'new_password': 'secret99'})
+    assert changed.get_json()['success']
     fresh = sh.app.test_client()
     assert fresh.post('/api/login', json={'username': 'admin', 'password': 'admin123'}).status_code == 401
     assert fresh.post('/api/login', json={'username': 'admin', 'password': 'secret99'}).status_code == 200
@@ -58,25 +59,31 @@ def test_change_password(client, sh):
 def test_templates_served_from_any_working_directory(client, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     page = client.get('/')
-    assert page.status_code == 200 and b'Sense-Hive' in page.data
+    assert page.status_code == 200 and b'SenseHive' in page.data
     assert client.get('/login').status_code == 200
 
 
+def source(*parts):
+    with open(os.path.join(os.path.dirname(__file__), '..', *parts), encoding='utf-8') as fh:
+        return fh.read()
+
+
 def test_frontend_uses_relative_urls_for_ingress():
-    root = os.path.join(os.path.dirname(__file__), '..', 'version-1.0', 'templates')
-    for name in ('index.html', 'login.html'):
-        html = open(os.path.join(root, name), encoding='utf-8').read()
-        for absolute in ("fetch('/", 'fetch(`/', "EventSource('/", "href = '/login'"):
-            assert absolute not in html, f'{name} contains absolute URL {absolute!r}'
+    pages = [('version-1.0', 'templates', n) for n in ('index.html', 'login.html', 'heartbeats.html')]
+    code = [('frontend', n) for n in ('dashboard.jsx', 'login.jsx', 'heartbeats.js')]
+    for parts in pages + code:
+        text = source(*parts)
+        for absolute in ("fetch('/", 'fetch(`/', "EventSource('/", "href = '/login'", 'href="/', 'src="/', "href='/"):
+            assert absolute not in text, f'{parts[-1]} contains absolute URL {absolute!r}'
 
 
 def test_frontend_wraps_long_and_nested_payloads():
     """Regression guard for issue #3 (payload overflow)."""
-    html = open(os.path.join(os.path.dirname(__file__), '..', 'version-1.0', 'templates', 'index.html'),
-                encoding='utf-8').read()
-    assert 'overflow-wrap: anywhere' in html and 'white-space: pre-wrap' in html
-    assert 'Array.isArray(value)' in html
-    assert 'min-width: 0' in html
+    css = source('frontend', 'input.css')
+    jsx = source('frontend', 'dashboard.jsx')
+    assert 'overflow-wrap: anywhere' in css and 'white-space: pre-wrap' in css
+    assert 'Array.isArray(value)' in jsx
+    assert 'min-width: 0' in css
 
 
 # ---------------------------------------------------------------- database setup & migration

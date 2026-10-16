@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Payload rendering: long values, arrays and nested JSON stay inside the card (Chrome and Firefox) */
+.payload-box { min-width: 0; overflow: hidden; }
+.payload-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; min-width: 0; }
+.payload-key { flex-shrink: 0; max-width: 40%; overflow-wrap: anywhere; }
+.payload-value { flex: 1 1 auto; min-width: 0; text-align: right; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+.payload-json {
+  margin: 0; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
+  max-height: 16rem; overflow: auto; font-family: theme('fontFamily.mono'); font-size: 0.8rem;
+}
+
+/* Long topic names, node names and broker hosts never push a card or the header wider than the screen. */
+.min-w-0 { min-width: 0; }
+.truncate-anywhere { overflow-wrap: anywhere; word-break: break-word; }

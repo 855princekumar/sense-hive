@@ -92,3 +92,25 @@ def test_signing_in_starts_a_new_session(sh):
     login(c)
     with c.session_transaction() as s:
         assert 'planted' not in s and s['logged_in']
+
+
+@pytest.mark.parametrize('topic', ['x" (timestamp, payload) SELECT 1, password FROM users --', 'a\x00b', 'line\nbreak',
+                                   't' * 513])
+def test_a_topic_that_could_break_sql_or_logs_is_refused(client, topic):
+    r = client.post('/api/nodes', json={'topic': topic, 'tag': 't', 'node_name': 'n'})
+    assert r.status_code == 400 and r.get_json()['success'] is False
+    assert client.get('/api/nodes').get_json() == []
+
+
+def test_a_quote_in_a_table_name_cannot_end_the_identifier(sh):
+    # defence in depth: even a topic stored before validation existed stays one identifier
+    name = sh.table_name_for('evil"; DROP TABLE users; --')
+    assert name == 'evil""; DROP TABLE users; --'
+    sh.create_topic_table('evil"; DROP TABLE users; --')
+    with sh.get_db() as conn:
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert 'users' in tables and 'evil"; DROP TABLE users; --' in tables
+
+
+def test_ordinary_topics_keep_their_table_names(sh):
+    assert sh.table_name_for('plant/line-1/+/temp/#') == 'plant_line-1_plus_temp_wildcard'

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sensehive-iot"
-version = "1.3.0"
+version = "1.4.0"
 description = "Lightweight MQTT data logger and dashboard: Run -> Add Topic -> Publish -> See Data"
 readme = "README.md"
 license = "MIT"
@@ -46,8 +46,25 @@ package-dir = { "sensehive" = "version-1.0" }
 include-package-data = false
 
 [tool.setuptools.package-data]
-sensehive = ["templates/*.html"]
+sensehive = ["templates/*.html", "static/*.js", "static/*.css", "static/SHA256SUMS", "static/vendor/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["integration: needs a real MQTT broker (set SENSEHIVE_TEST_BROKER=host:port)"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 130
+extend-exclude = ["node_modules"]
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle, bugbear, comprehensions, simplify and pylint errors/warnings;
+# security rules run in Bandit (CI), so S is not repeated here.
+select = ["E", "F", "W", "B", "C4", "PIE", "SIM", "PLE", "PLW"]
+ignore = [
+    "SIM105",   # try/except/pass reads plainer than contextlib.suppress here
+    "PLW0603",  # module state (MQTT client, broker status) is global by design: one per process
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tools/ui_test.py" = ["E501"]   # browser-side JavaScript kept on one line per check
