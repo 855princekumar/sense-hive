@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="SenseHive Banner"/>
 </p>
 
-![Release](https://img.shields.io/badge/release-v1.4.2-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell)
+![Release](https://img.shields.io/badge/release-v1.4.2-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-28%20MB%20idle%20%7C%2035%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
 
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
@@ -817,18 +817,26 @@ npm ci && npm run check                                 # built front end matche
 
 ## Performance Benchmarks
 
-Based on internal LAN testing with Docker deployment.
-Tested on: Raspberry Pi 5 (8GB) and x86 local system
+**Lightweight by design: about 28 MB of memory at idle and 35 MB with 500
+heartbeat nodes and 100 busy topics, in a 57 MB image.** Measured with
+SenseHive 1.4.2 (script in `tools/measure/`, full results in
+[docs/PERFORMANCE.md](docs/PERFORMANCE.md)):
 
-| Metric                | Value / Range              |
-|---------------------|---------------------------|
-| Ingestion Rate       | ~1k–3k msgs/min           |
-| Devices Supported    | ~20–50 devices            |
-| CPU Usage            | ~5–15% (Raspberry Pi 5)   |
-| Memory Usage         | ~80–150 MB                |
-| Dashboard Latency    | <1 second                 |
+| Scenario | CPU (one core) | Memory |
+| -------- | -------------- | ------ |
+| Idle, heartbeat receiver on, 100 topics subscribed | 0.04 % | 28 MB |
+| 500 heartbeat nodes (50 encrypted messages/s verified) | 8.7 % | 34 MB |
+| The same plus 100 topics logging 50 messages/s | 19 % | 35 MB |
 
-> Note: Values are indicative and may vary depending on workload and hardware.
+| Also measured | Value |
+| ------------- | ----- |
+| API response (500 nodes, 100 topics) | 2 to 8 ms p50, under 10 ms p95 |
+| Storage per logged message | about 270 bytes at most, including indexes |
+| Heartbeats refused in the run | 0 (all 500 nodes online) |
+| Docker image | 57 MB, amd64 and arm64 |
+
+Test machine: Intel Core i7-1185G7 laptop, Docker Desktop. Expect a few times
+the CPU share on a Raspberry Pi core; memory stays about the same.
 
 ---
 
