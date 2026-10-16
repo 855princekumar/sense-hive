@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.2 (2026-10-16)
+
+**Security**
+- Values from requests are made safe before they reach the log (no line breaks
+  or control characters), so a signed-in user cannot forge log entries
+  (CodeQL `py/log-injection`).
+
 ## 1.4.1 (2026-10-16)
 
 **Security**

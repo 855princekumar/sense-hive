@@ -15,7 +15,7 @@ import queue
 import pytz
 from functools import wraps
 
-__version__ = '1.4.1'
+__version__ = '1.4.2'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
@@ -800,8 +800,16 @@ def test_broker():
         test_client.disconnect()
         return jsonify({'success': True})
     except Exception as e:
-        app.logger.warning('Broker test to %s:%s failed: %r', data.get('host'), data.get('port'), e)
+        app.logger.warning('Broker test to %s:%s failed: %s', log_safe(data.get('host')), log_safe(data.get('port')),
+                           log_safe(repr(e)))
         return jsonify({'success': False, 'error': broker_error_text(e)})
+
+
+def log_safe(value, limit=200):
+    """A value fit for one log line: no line breaks or other control characters
+    (no forged log entries), and not too long."""
+    text = str(value).replace('\r', ' ').replace('\n', ' ')
+    return ''.join(ch if ch.isprintable() else '?' for ch in text)[:limit]
 
 
 def broker_error_text(error):
@@ -1077,7 +1085,7 @@ def export_node(node_id):
                 headers={'Content-Disposition': f'attachment; filename={topic.replace("/", "_")}.csv'}
             )
         except Exception:
-            app.logger.exception('CSV export of node %s failed', node_id)
+            app.logger.exception('CSV export of node %s failed', log_safe(node_id))
             return jsonify({'error': 'Export failed; see the server log'}), 500
 
 
