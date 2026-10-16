@@ -10,3 +10,12 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: {interval: weekly}
+  - package-ecosystem: npm
+    directory: /
+    schedule: {interval: weekly}
+    open-pull-requests-limit: 5
+    ignore:
+      # Tailwind 4 is a rewrite (new CLI package, CSS-first config); move to it on
+      # purpose, with the browser UI test, not through an automatic bump.
+      - dependency-name: tailwindcss
+        update-types: ["version-update:semver-major"]

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.1 (2026-10-16)
+
+**Security**
+- A failed broker test or CSV export no longer sends exception text to the
+  browser: fixed messages for users, details in the server log (CodeQL
+  `py/stack-trace-exposure`).
+- Build tools: esbuild 0.28.1 (GHSA-67mh-4wv8-2f99) and postcss-selector-parser
+  7.1.6 under Tailwind 3 (GHSA-rj75-hqrm-r3gf), with byte-identical built files.
+  Both are build-time only; nothing from `node_modules` ships.
+- Dependabot watches the npm build tools; Tailwind major versions are upgraded
+  on purpose, not automatically.
+
 ## 1.4.0 (2026-10-16)
 
 **Interface**

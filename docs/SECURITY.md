@@ -68,6 +68,15 @@ CI runs CodeQL, Bandit, pip-audit, ruff, the regression tests, the browser UI
 test (including CSP violations) and a front-end build check; Dependabot and
 GitHub secret scanning are on. See [Development](DEVELOPMENT.md#ci).
 
+## Build-time dependencies
+
+`node_modules` is only used to build `version-1.0/static`; none of it ships in
+the image, the pip package or the Home Assistant add-on. Advisories against
+these tools (for example in Tailwind 3's file watcher, which has no patched
+release) cannot be reached from a running SenseHive. They are still tracked by
+Dependabot and fixed when a compatible release exists, with the build checked
+to produce identical files.
+
 ## Reporting a problem
 
 Please use GitHub's **private vulnerability reporting** (Security tab >

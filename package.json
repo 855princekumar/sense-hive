@@ -7,9 +7,12 @@
     "check": "node tools/build_frontend.mjs --check"
   },
   "devDependencies": {
-    "esbuild": "0.24.2",
+    "esbuild": "0.28.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "tailwindcss": "3.4.17"
+  },
+  "overrides": {
+    "postcss-selector-parser": "7.1.6"
   }
 }
