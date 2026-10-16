@@ -201,6 +201,14 @@ Screenshots are taken from a seeded test install by `tools/screenshots.py`
 
 ## Key Features
 
+SenseHive collects data in two ways, side by side: the **MQTT logger** for the
+topics you add, and the **heartbeat receiver**, which finds edge nodes by
+itself and serves their state through a read-only API.
+
+<p align="center">
+  <img src="docs/assets/sensehive-overview.svg" width="100%" alt="Two ways SenseHive collects data" />
+</p>
+
 | Category                   | Highlights                                                                         |
 | -------------------------- | ---------------------------------------------------------------------------------- |
 | **MQTT Data Ingestion**    | Compatible with any MQTT device · Public broker support · Topic-based subscription |
@@ -248,9 +256,25 @@ Existing v1.0 databases are migrated automatically on first start. Keep your `/a
 
 SenseHive can receive **encrypted, authenticated heartbeats** from edge nodes
 running the [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service),
-over a public broker, and serve their state read-only (used by
-[EdgeShell](https://github.com/855princekumar/edgeshell) for VPN-independent
-uptime and LWT status on its node cards).
+over a public broker, and serve their state read-only to
+[EdgeShell](https://github.com/855princekumar/edgeshell) (VPN-independent
+uptime and LWT status on its node cards) or **any other tool** that reads JSON
+(Grafana, Node-RED, Home Assistant, scripts).
+
+<p align="center">
+  <img src="docs/assets/heartbeat-flow.svg" width="100%" alt="How the MQTT heartbeat works" />
+</p>
+
+- **Nothing to set up per node.** Give SenseHive the fleet's master key and it
+  computes the fleet's rotating topics itself, derives each sender's key from
+  the key id in the message, and records a node on its **first valid
+  heartbeat**. There is no node list to maintain and no topic to add.
+- **The MQTT logger keeps working as before**: add topics with **Add Node** and
+  watch them on the dashboard; the receiver uses its own connection and tables.
+
+The full guide, with how the agent works on a node, example API responses and
+recipes for curl, Python, Node-RED, Home Assistant and Grafana, is in
+[docs/HEARTBEAT.md](docs/HEARTBEAT.md).
 
 - **Off by default.** Set `HEARTBEAT_MASTER_KEY` (64 hex characters) to turn it
   on. Nothing else in SenseHive changes: it uses its own TLS connection to the
