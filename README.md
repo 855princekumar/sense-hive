@@ -360,6 +360,41 @@ graph TD
     F --> I[CSV Export API]
 ```
 
+### As part of the EdgeShell system
+
+SenseHive also runs next to [EdgeShell](https://github.com/855princekumar/edgeshell),
+the fleet control plane, as its **heartbeat receiver**. Five projects work
+together:
+
+```mermaid
+flowchart LR
+    U[Admins and operators] -->|HTTPS| NG[nginx]
+    NG --> ES[EdgeShell<br/>control plane]
+    NG -->|/sensehive/, admins after EdgeShell's 2FA gate| SH[SenseHive]
+    ES -->|SSH and Ansible over the mesh| N[Edge nodes<br/>heartbeat agent on each]
+    ES -->|Fleet Setup installs| N
+    N -->|AES-256-GCM heartbeats + last will<br/>every 10 s| B[Public MQTT broker, TLS]
+    B --> SH
+    SH -->|read-only heartbeat API, bearer token| ES
+    PFE[Pi Fleet Emulator] -.->|every EdgeShell release tested against| ES
+    ES -->|Remote button| ORG[OpenRemoteGUI on nodes]
+```
+
+| Part | Job |
+| ---- | --- |
+| [EdgeShell](https://github.com/855princekumar/edgeshell) | Users, roles, 2FA, SSH and Ansible to nodes, monitoring, uptime and SLA |
+| **SenseHive** | Verifies node heartbeats and serves their state to EdgeShell; MQTT data logger for admins |
+| [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service) | On every node: encrypted heartbeat every 10 s and a last will |
+| [OpenRemoteGUI](https://github.com/855princekumar/OpenRemoteGUI) | Browser remote desktop on nodes |
+| [Pi Fleet Emulator](https://github.com/855princekumar/pi-fleet-emulator) | Emulated Pi fleet for testing |
+
+**Recommended setup:** run SenseHive from EdgeShell's Compose file (it is
+already in it), give both the same `HEARTBEAT_MASTER_KEY` and API token, install
+the agent from EdgeShell's **Fleet Setup**, and open SenseHive from EdgeShell's
+admin panel. Node status then arrives on two independent paths: SSH metrics
+over the mesh, and heartbeats over the broker, so a VPN outage is told apart
+from a node outage. Details: [docs/HEARTBEAT.md](docs/HEARTBEAT.md).
+
 ---
 
 ## Data Flow
