@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.6.1 (2026-10-16)
+
+**Fixed**
+- Heartbeat history always shows an outage that is still going on. An offline
+  or silent node shows how long it has been down since its last heartbeat (and
+  when its last will arrived), also when it went down before the chosen range
+  or before heartbeat history was kept (1.5.0), and on the 7 and 30 day views.
+  Before, such a node showed no break at all.
+- With fewer than two heartbeats in the range, breaks are measured against the
+  agent's 10 s interval instead of not at all.
+- A last will inside an outage no longer splits it into two breaks; the break
+  shows when the last will arrived.
+- A break that began before the range is drawn from the chart's left edge.
+
 ## 1.6.0 (2026-10-16)
 
 **Interface**

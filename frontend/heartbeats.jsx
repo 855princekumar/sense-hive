@@ -83,7 +83,8 @@
             body = (
                 <g>
                     {(data.breaks || []).map((b, i) => (
-                        <rect key={'b' + i} x={x(b.from)} y={T} width={Math.max(2, x(b.to || data.until) - x(b.from))} height={ih}
+                        <rect key={'b' + i} x={x(Math.max(b.from, data.since))} y={T}
+                            width={Math.max(2, x(b.to || data.until) - x(Math.max(b.from, data.since)))} height={ih}
                             fill="#dc2626" opacity="0.12" />
                     ))}
                     {data.interval && <line x1={L} x2={L + iw} y1={y(data.interval)} y2={y(data.interval)} stroke="#1a56db" strokeDasharray="4 4" strokeWidth="1" opacity="0.6" />}
@@ -203,6 +204,14 @@
                                     {data.kind === 'beats' && stat('Delay (median)', data.lag_ms == null ? '-' : data.lag_ms + ' ms')}
                                     {data.kind === 'hours' && stat('Hours with a gap', data.points.filter((p) => p[2] && p[1] < p[2]).length)}
                                 </div>
+                                {data.current_break && (
+                                    <div id="hbDownNow" className={`text-sm rounded-lg border px-3 py-2 ${dark ? 'border-red-800 bg-gray-900 text-red-300' : 'border-red-300 bg-red-50 text-red-700'}`}>
+                                        <b>{data.current_break.status === 'offline' ? 'Offline' : 'Silent'} for {duration(data.current_break.seconds)}</b>
+                                        {' '}since the last heartbeat at {new Date(data.current_break.from * 1000).toLocaleString()}
+                                        {data.current_break.lwt_at ? '; last will received ' + new Date(data.current_break.lwt_at * 1000).toLocaleString() : ''}
+                                        {data.current_break.from < data.since ? ' (before this range)' : ''}
+                                    </div>
+                                )}
                                 {data.kind === 'beats' && data.breaks.length > 0 && (
                                     <div>
                                         <h3 className="font-semibold text-sm mb-1">Breaks</h3>
@@ -211,6 +220,7 @@
                                                 <li key={i} className="flex flex-wrap gap-x-2">
                                                     <span className="text-red-500 font-medium">{duration(b.seconds)}</span>
                                                     <span className="text-gray-500">{new Date(b.from * 1000).toLocaleString()}{b.to ? '' : ' (still going)'}</span>
+                                                    {b.lwt_at && <span className="text-gray-500">last will {new Date(b.lwt_at * 1000).toLocaleTimeString()}</span>}
                                                 </li>
                                             ))}
                                         </ul>

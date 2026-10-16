@@ -131,3 +131,72 @@ def test_old_heartbeats_are_pruned(hist):
     rx.prune()
     with hive.get_db() as conn:
         assert conn.execute('SELECT COUNT(*) FROM hb_beats').fetchone()[0] == 0
+
+
+def history(hive, rng='1h', node='pi-01'):
+    return api(hive, f'/api/heartbeat/history?node={node}&range={rng}').get_json()
+
+
+def test_an_offline_node_shows_its_break_even_when_it_began_before_the_range(hist):
+    hive, clock = hist
+    run_node(hive, clock, seconds=120)
+    last = clock.t
+    clock.t += 40
+    assert beat(hive, clock, kind='lwt', session=last - 120)       # the broker publishes the last will
+    clock.t += 2 * 3600                                            # two hours later, viewed over 1 hour
+    h = history(hive, '1h')
+    assert h['received'] == 0
+    assert len(h['breaks']) == 1
+    b = h['breaks'][0]
+    assert b['to'] is None and b['from'] == pytest.approx(last) and b['from'] < h['since']
+    assert b['status'] == 'offline' and b['lwt_at'] == pytest.approx(last + 40)
+    assert b['seconds'] == pytest.approx(2 * 3600 + 40, abs=1) == h['longest_break']
+    assert h['current_break'] == b
+    week = history(hive, '7d')                                     # hourly view: the outage is reported too
+    assert week['kind'] == 'hours' and week['current_break']['from'] == pytest.approx(last)
+
+
+def test_a_break_is_found_with_a_single_heartbeat_in_the_range(hist):
+    hive, clock = hist
+    run_node(hive, clock, seconds=0)                               # one birth message, then nothing
+    clock.t += 300
+    h = history(hive, '1h')
+    assert h['interval'] is None and h['received'] == 1
+    assert len(h['breaks']) == 1 and h['breaks'][0]['status'] == 'silent' and h['breaks'][0]['seconds'] == 300
+
+
+def test_heartbeats_no_longer_kept_still_give_the_ongoing_break(hist):
+    hive, clock = hist
+    run_node(hive, clock, seconds=60)
+    last = clock.t
+    with hive.heartbeat_receiver.db() as conn:                    # as before heartbeat history existed
+        conn.execute('DELETE FROM hb_beats')
+        conn.commit()
+    clock.t += 600
+    h = history(hive, '1h')
+    assert h['points'] == [] and h['breaks'][0]['from'] == pytest.approx(last)
+    assert h['breaks'][0]['status'] == 'silent'
+
+
+def test_a_last_will_inside_an_outage_does_not_split_it(hist):
+    hive, clock = hist
+    run_node(hive, clock, seconds=60)
+    session, last = clock.t - 60, clock.t
+    clock.t += 30
+    assert beat(hive, clock, kind='lwt', session=session)
+    clock.t += 200
+    run_node(hive, clock, seconds=30)                              # back with a new session
+    h = history(hive, '1h')
+    assert len(h['breaks']) == 1
+    b = h['breaks'][0]
+    assert b['from'] == pytest.approx(last) and b['seconds'] == pytest.approx(230, abs=0.5)
+    assert b['lwt_at'] == pytest.approx(last + 30)
+    assert h['current_break'] is None
+
+
+def test_an_online_node_has_no_current_break(hist):
+    hive, clock = hist
+    run_node(hive, clock, seconds=60)
+    clock.t += 5
+    assert history(hive, '1h')['current_break'] is None
+    assert history(hive, '30d')['current_break'] is None
