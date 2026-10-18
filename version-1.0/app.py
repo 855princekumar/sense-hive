@@ -15,7 +15,7 @@ import queue
 import pytz
 from functools import wraps
 
-__version__ = '1.6.1'
+__version__ = '1.7.0'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
@@ -159,10 +159,12 @@ NODE_COLUMNS = (
     ('lwt_topic', "TEXT NOT NULL DEFAULT ''"),
     ('lwt_online', "TEXT NOT NULL DEFAULT 'online'"),
     ('lwt_offline', "TEXT NOT NULL DEFAULT 'offline'"),
+    ('secure', 'INTEGER NOT NULL DEFAULT 0'),           # 1: a secure topic (found by its key, ADR 0009)
+    ('key_id', "TEXT NOT NULL DEFAULT ''"),
 )
 
-ACTIVE_WORDS = {'online', 'active', 'connected', 'up', 'alive', 'true', '1'}
-INACTIVE_WORDS = {'offline', 'inactive', 'disconnected', 'down', 'dead', 'lost', 'false', '0'}
+ACTIVE_WORDS = {'online', 'active', 'connected', 'up', 'alive', 'true', '1', 'on'}
+INACTIVE_WORDS = {'offline', 'inactive', 'disconnected', 'down', 'dead', 'lost', 'false', '0', 'off'}
 
 
 def classify_lwt(payload_str, online='online', offline='offline'):
@@ -358,6 +360,7 @@ def init_db():
 
         conn.commit()
     heartbeat_receiver.init_db()
+    secure_topics.init_db()
 
 
 def get_setting_int(key, default=0):
@@ -419,6 +422,10 @@ def retention_worker():
             apply_retention()
         except Exception as e:
             print(f"❌ Retention job failed: {e}")
+        try:
+            secure_topics.expire()
+        except Exception as e:
+            print(f"❌ Secure key expiry failed: {type(e).__name__}")
 
 
 # Get current timezone
@@ -472,8 +479,10 @@ def sync_subscriptions(client=None, reset=False):
     if not client:
         return
     with get_db() as conn:
-        rows = conn.execute('SELECT topic, lwt_topic FROM nodes').fetchall()
-    wanted = {row['topic'] for row in rows} | {row['lwt_topic'] for row in rows if row['lwt_topic']}
+        rows = conn.execute('SELECT topic, lwt_topic, secure FROM nodes').fetchall()
+    wanted = {row['topic'] for row in rows if not row['secure']} | {row['lwt_topic'] for row in rows if row['lwt_topic']}
+    if secure_topics.enabled:
+        wanted.add(secure_topics.subscription())     # secure topics are found under the root
     with subscription_lock:
         current = set() if reset else subscribed_topics
         for topic in sorted(wanted - current):
@@ -516,6 +525,9 @@ def on_message(client, userdata, msg):
             dropped_payloads += 1
             print(f"⚠️ Dropped a {len(msg.payload)}-byte message on {log_safe(topic, 120)} (limit {MAX_PAYLOAD_BYTES})")
             return
+        if secure_topics.enabled and secure_topics.under_root(topic):
+            store_secure(topic, msg.payload)         # secure topics stay apart from open ones (ADR 0009)
+            return
         payload_str = msg.payload.decode('utf-8', errors='replace')
 
         # Try to parse JSON (deeply nested input is kept as text, not parsed)
@@ -529,10 +541,12 @@ def on_message(client, userdata, msg):
         lwt_updates = {}
         with get_db() as conn:
             c = conn.cursor()
-            rows = c.execute('SELECT topic, lwt_topic, lwt_online, lwt_offline FROM nodes').fetchall()
+            rows = c.execute('SELECT topic, lwt_topic, lwt_online, lwt_offline, secure FROM nodes').fetchall()
 
-            # A message can match several subscriptions (exact topics and wildcards like sensors/#)
-            matched = sorted({row['topic'] for row in rows if mqtt.topic_matches_sub(row['topic'], topic)})
+            # A message can match several subscriptions (exact topics and wildcards like sensors/#);
+            # secure topics only ever get data through their key (store_secure), never here
+            matched = sorted({row['topic'] for row in rows
+                              if not row['secure'] and mqtt.topic_matches_sub(row['topic'], topic)})
             for sub in matched:
                 c.execute(f'INSERT INTO "{table_name_for(sub)}" (timestamp, payload) VALUES (?, ?)',  # nosec B608 - identifier from table_name_for(), values bound
                           (localized_time, json.dumps(payload)))
@@ -567,6 +581,57 @@ def on_message(client, userdata, msg):
 
     except Exception as e:
         print(f"❌ Error processing message: {type(e).__name__}")
+
+
+def store_secure(topic, payload):
+    """A message under the secure root: verified and decrypted with its key, then
+    stored like any topic. A new topic is added by itself (discovery)."""
+    result = secure_topics.handle(topic, payload, MAX_PAYLOAD_BYTES)
+    if result is None:
+        return
+    key, data = result
+    text = data.decode('utf-8', errors='replace')
+    try:
+        value = json.loads(text)
+    except (ValueError, RecursionError):
+        value = {"value": text}
+    localized_time = get_localized_timestamp()
+    name = key['label'] or ('key-' + key['kid'][:8])
+    lwt = status_topic_from(value)
+    created = False
+    with get_db() as conn:
+        c = conn.cursor()
+        if not c.execute('SELECT 1 FROM nodes WHERE topic = ?', (topic,)).fetchone():
+            c.execute('''INSERT INTO nodes (topic, tag, node_name, secure, key_id, lwt_topic) VALUES (?, 'secure', ?, 1, ?, ?)''',
+                      (topic, name, key['kid'], lwt or ''))
+            created = True
+        elif lwt:                                    # set once by the device, never changed behind the user's back
+            c.execute("UPDATE nodes SET lwt_topic = ? WHERE topic = ? AND secure = 1 AND lwt_topic = ''", (lwt, topic))
+            created = c.rowcount > 0
+        conn.commit()
+    if created and lwt:
+        sync_subscriptions()
+    if created:
+        create_topic_table(topic)
+        print(f"🔐 Secure topic found or updated: {log_safe(topic, 120)}")
+    with get_db() as conn:
+        conn.execute(f'INSERT INTO "{table_name_for(topic)}" (timestamp, payload) VALUES (?, ?)',  # nosec B608 - identifier from table_name_for(), values bound
+                     (localized_time, json.dumps(value)))
+        conn.commit()
+    publish_event({'topic': topic, 'source_topic': topic, 'payload': value, 'timestamp': localized_time,
+                   'secure': True, 'new': created})
+
+
+def status_topic_from(value):
+    """The status (last will) topic a device names in its signed message as
+    "sensehive_lwt", if it is a plain, valid topic outside the secure root."""
+    lwt = value.get('sensehive_lwt') if isinstance(value, dict) else None
+    if not isinstance(lwt, str):
+        return None
+    lwt = lwt.strip()
+    if not lwt or topic_error(lwt) or any(ch in lwt for ch in '#+') or secure_topics.under_root(lwt):
+        return None
+    return lwt
 
 
 # Initialize MQTT client
@@ -934,6 +999,9 @@ def nodes():
         error = topic_error(topic)
         if error:
             return jsonify({'success': False, 'error': error}), 400
+        if secure_topics.enabled and secure_topics.under_root(topic):
+            return jsonify({'success': False, 'error': 'That topic is under the secure topic root: secure topics are '
+                            'added by their key (Secure topics).'}), 400
         fields, error = node_fields_from(data)
         if error:
             return jsonify({'success': False, 'error': error}), 400
@@ -1013,6 +1081,7 @@ def stats():
     summary = summarize_status(nodes)
     return jsonify({
         'topic_count': len(nodes),
+        'secure_topic_count': sum(1 for n in nodes if n.get('secure')),
         'topics': summary['topics'],
         'nodes': summary['nodes'],
         'node_list': summary['node_list'],
@@ -1128,6 +1197,27 @@ except ImportError:                          # run as app.py (Docker image, test
 
 heartbeat_receiver = heartbeat_module.register(app, get_db, lambda: 'logged_in' in session,
                                                lambda: new_mqtt_client())  # noqa: PLW0108 - looked up at call time
+
+
+# ============================================================================
+# SECURE TOPICS - per-topic keys, found by themselves under one root (ADR 0009)
+# ============================================================================
+try:
+    from . import secure as secure_module
+except ImportError:                          # run as app.py (Docker image, tests)
+    import secure as secure_module
+
+secure_topics = secure_module.SecureTopics(get_db, lambda: app.config.get('SECRET_KEY'))
+
+
+def check_own_password(password):
+    with get_db() as conn:
+        row = conn.execute('SELECT password FROM users WHERE username = ?', (session.get('username'),)).fetchone()
+    return bool(row) and security.verify_password(row['password'], password)
+
+
+secure_module.register(app, secure_topics, lambda: 'logged_in' in session, check_own_password, login_limiter,
+                       lambda: security.client_ip(request), lambda: sync_subscriptions())  # noqa: PLW0108
 
 
 @app.route('/heartbeats')

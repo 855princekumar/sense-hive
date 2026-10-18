@@ -36,7 +36,7 @@ SCREENS = [('phone', 390, 844, 3), ('tablet', 820, 1180, 2), ('laptop', 1366, 76
            ('desktop', 1920, 1080, 1)]
 ZOOMS = [('laptop', 1366, 768, z) for z in (0.67, 1.25, 1.5, 2.0)] + \
         [('desktop', 1920, 1080, z) for z in (1.5, 2.0)]
-PAGES = ['/login', '/', '/?view=heartbeats']
+PAGES = ['/login', '/', '/?view=heartbeats', '/?topics=secure']
 PASSWORD = 'ui-test-' + os.urandom(6).hex()
 
 LAYOUT_JS = r"""
@@ -121,6 +121,7 @@ HB_NODES = [('gateway-01', 'online', 0, 1.2), ('pi-node-2', 'online', 0, 1.2),
             ('plant-east-gate-sensor-hub-panel-with-a-long-name', 'silent', 400, 1.1),
             ('old-pump-node', 'offline', 3 * 3600, 1.0)]
 NO_BEATS = {'old-pump-node'}            # went offline before heartbeat history was kept
+SECURE = {}                              # the seeded secure key (ADR 0009)
 
 
 def seed(app):
@@ -172,6 +173,20 @@ def seed(app):
         conn.commit()
     app.heartbeat_receiver.init_db()
     app.heartbeat_receiver.tracker.nodes.clear()        # statuses from the table, not a live tracker
+
+    # Secure topics: two keys, one used by a device (its topic found by itself), one still pending
+    made = app.secure_topics.generate(2, 'pump-house')
+    SECURE.update(made[0])
+    topic = app.secure_topics.root + '/site-a/pump-1'
+    msg = type('Msg', (), {'topic': topic, 'payload': app.secure_module.seal(
+        bytes.fromhex(made[0]['key']), made[0]['kid'], topic, json.dumps({'flow': 12.5, 'pressure': 2.1}))})()
+    app.on_message(None, None, msg)
+    SECURE['topic'] = topic
+    # A dead node in the recycle bin that sent a heartbeat again ("came back")
+    with app.get_db() as conn:
+        conn.execute('INSERT INTO hb_nodes (name, status, last_seen, binned_at, came_back_at) VALUES (?, ?, ?, ?, ?)',
+                     ('retired-sensor', 'silent', now - 60, now - 3 * 86400, now - 60))
+        conn.commit()
 
 
 class Report:
@@ -270,7 +285,8 @@ def run_layout(pw, base, rep, configs, dark=False):
         for path in PAGES[1:]:
             errors.clear()
             page.goto(base + path)
-            page.wait_for_selector('#hbTable tbody tr' if 'heartbeats' in path else '.sh-card', timeout=15000)
+            page.wait_for_selector('#hbTable tbody tr' if 'heartbeats' in path else
+                                   '#secureView .sh-card' if 'secure' in path else '.sh-card', timeout=15000)
             settle(page)
             issues = layout(page)
             rep.check(f'{tag} {path} layout', not issues, '; '.join(issues[:6]), page)
@@ -285,9 +301,20 @@ def run_layout(pw, base, rep, configs, dark=False):
         check_dialog(page, rep, tag, 'topic history dialog', ['.sh-card >> text=Details'])
         check_dialog(page, rep, tag, 'password dialog', ['[title="Settings"]', '.sh-modal >> text=Change Password'])
         page.keyboard.press('Escape')
+        check_dialog(page, rep, tag, 'secure topics guide', ['#infoSecure'])
+        page.click('#kindSecure')
+        page.wait_for_selector('#secureView .sh-card')
+        check_dialog(page, rep, tag, 'generate keys dialog', ['#genKeysBtn'])
+        check_dialog(page, rep, tag, 'show key dialog', ['#keyTable >> text=Show key'])
+        check_dialog(page, rep, tag, 'secure topic history dialog', ['#secureView .sh-card >> text=Details'])
+        page.click('#kindOpen')
         page.click('#viewHeartbeats')
         page.wait_for_selector('#hbTable tbody tr')
         check_dialog(page, rep, tag, 'heartbeat history dialog', ['.hb-history'], ranges=('1m', '1d', '7d', '30d'))
+        page.click('#hbBinOpen')
+        page.wait_for_selector('#hbBinDialog')
+        settle(page)
+        rep.check(f'{tag} recycle bin fits the screen', not (i := layout(page)), '; '.join(i[:6]), page)
         browser.close()
 
 
@@ -438,7 +465,77 @@ def run_interactions(pw, base, rep, label, w, h, scale):
     every = read_text(dl.value.path()).splitlines()
     rep.check(f'{label}: all nodes export their status changes', every[0] == 'node,time_utc,unix_time,status'
               and len({line.split(',')[0] for line in every[1:]}) == len(HB_NODES), every[:2], page)
+
+    # Recycle bin: a dead node waits there; "came back" when it sends heartbeats again; restore and bin again
+    rep.check(f'{label}: a binned node is not in the list', page.locator('#hbTable tbody tr', has_text='retired-sensor').count() == 0,
+              '', page)
+    page.click('#hbBinOpen')
+    page.wait_for_selector('#hbBinDialog')
+    row = page.locator('#hbBinTable tbody tr', has_text='retired-sensor')
+    rep.check(f'{label}: the recycle bin lists it' + (', marked came back' if label == 'desktop' else ''),
+              row.count() == 1 and (label != 'desktop' or row.locator('.hb-came-back').count() == 1),
+              page.inner_text('#hbBinDialog')[:200], page)        # binned again by the first run: no longer "came back"
+    row.locator('input[type=checkbox]').check()
+    page.click('#hbBinRestore')
+    page.locator('#hbBinTable tbody tr', has_text='retired-sensor').wait_for(state='detached', timeout=10000)
+    page.locator('#hbBinDialog button', has_text='Close').click()
+    page.locator('#hbTable tbody tr', has_text='retired-sensor').wait_for(timeout=15000)
+    rep.check(f'{label}: a restored node is back in the list', True, '', page)
+    for box in page.locator('#hbTable tbody input[type=checkbox]').all():   # only this node: clear the export picks
+        box.uncheck()
+    page.locator('#hbTable tbody tr', has_text='retired-sensor').locator('input[type=checkbox]').check()
+    rep.check(f'{label}: the bin button counts the selection', 'Move to bin (1)' in page.inner_text('#hbToBin'),
+              page.inner_text('#hbToBin'), page)
+    page.click('#hbToBin')
+    page.locator('#hbTable tbody tr', has_text='retired-sensor').wait_for(state='detached', timeout=15000)
+    rep.check(f'{label}: moving a node to the bin hides it', page.locator('#hbTable tbody tr').count() == len(HB_NODES),
+              page.locator('#hbTable tbody tr').count(), page)
     page.click('#viewTopics')
+    page.wait_for_selector('.sh-card')
+
+    # Secure topics: apart from open ones, found by itself, keys generated (CSV), shown again with the password
+    open_text = page.inner_text('#root')
+    rep.check(f'{label}: a secure topic is not among the open topics', SECURE['topic'] not in open_text, '', page)
+    page.click('#kindSecure')
+    page.wait_for_selector('#secureView .sh-card')
+    rep.check(f'{label}: the secure view has its own address', 'topics=secure' in page.url, page.url, page)
+    card = page.inner_text('#secureView .sh-card')
+    rep.check(f'{label}: the secure topic shows its decrypted value', SECURE['topic'] in card and '12.5' in card, card[:200], page)
+    page.wait_for_selector('#keyTable tbody tr')
+    before = page.locator('#keyTable tbody tr').count()
+    page.click('#genKeysBtn')
+    page.wait_for_selector('#genCount')
+    page.fill('#genCount', '3')
+    page.fill('#genLabel', f'ui-{label}')
+    page.click('#genGo')
+    page.wait_for_selector('#madeDialog')
+    rep.check(f'{label}: three keys are shown once', page.locator('#madeDialog tbody tr').count() == 3, '', page)
+    with page.expect_download() as dl:
+        page.click('#madeCsv')
+    csv_lines = read_text(dl.value.path()).splitlines()
+    rep.check(f'{label}: the keys download as CSV', csv_lines[0].startswith('key_id,key,label,topic') and len(csv_lines) == 4,
+              csv_lines[:2], page)
+    page.locator('#madeDialog button', has_text='Done').click()
+    page.wait_for_timeout(600)
+    rep.check(f'{label}: the new keys are listed as pending', page.locator('#keyTable tbody tr').count() == before + 3,
+              (before, page.locator('#keyTable tbody tr').count()), page)
+    rep.check(f'{label}: no key secret is in the list', SECURE['key'] not in page.inner_text('#keyTable'), '', page)
+    page.locator('#keyTable tbody tr', has_text=SECURE['kid']).locator('button', has_text='Show key').click()
+    page.fill('#revealPassword', PASSWORD)
+    page.click('#revealGo')
+    try:
+        page.wait_for_selector('#revealDialog code', timeout=10000)
+        shown = page.inner_text('#revealDialog code').strip()
+    except Exception:
+        shown = page.inner_text('#revealDialog')
+    rep.check(f'{label}: the key is shown again with the password', shown == SECURE['key'], shown[:200], page)
+    page.keyboard.press('Escape')
+    page.click('#infoSecure')
+    page.wait_for_selector('#guideLink')
+    rep.check(f'{label}: the secure guide links the device code',
+              page.get_attribute('#guideLink', 'href').endswith('/docs/SECURE-TOPICS.md'), page.get_attribute('#guideLink', 'href'), page)
+    page.keyboard.press('Escape')
+    page.click('#kindOpen')
     page.wait_for_selector('.sh-card')
 
     page.click('#addNodeBtn')

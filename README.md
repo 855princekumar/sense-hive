@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="SenseHive Banner"/>
 </p>
 
-![Release](https://img.shields.io/badge/release-v1.6.1-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-28%20MB%20idle%20%7C%2035%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
+![Release](https://img.shields.io/badge/release-v1.7.0-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-28%20MB%20idle%20%7C%2035%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
 
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
@@ -31,6 +31,9 @@
 - [Documentation](#documentation)
 - [Quick Start (30 seconds)](#quick-start-30-seconds)
 - [Dashboard Preview](#dashboard-preview)
+- [Minimum System Requirements](#minimum-system-requirements)
+- [What's New in v1.7](#whats-new-in-v17)
+- [What's New in v1.6](#whats-new-in-v16)
 - [What's New in v1.5](#whats-new-in-v15)
 - [What's New in v1.4](#whats-new-in-v14)
 - [Key Features](#key-features)
@@ -72,6 +75,7 @@ Full guides live in [`docs/`](docs/README.md):
 [Setup](docs/SETUP.md) |
 [Configuration](docs/CONFIGURATION.md) |
 [Using SenseHive](docs/USING.md) |
+[Secure topics](docs/SECURE-TOPICS.md) |
 [Heartbeats and EdgeShell](docs/HEARTBEAT.md) |
 [Security](docs/SECURITY.md) |
 [Development and testing](docs/DEVELOPMENT.md) |
@@ -191,6 +195,13 @@ Screenshots are taken from a seeded test install by `tools/screenshots.py`
   <img src="assets/settings.png" width="45%" alt="Settings" />
 </p>
 <p align="center">
+  <img src="assets/secure-topics.png" width="90%" alt="Secure topics, found by themselves" />
+</p>
+<p align="center">
+  <img src="assets/secure-keys.png" width="45%" alt="New keys, shown once, with CSV download" />
+  <img src="assets/heartbeat-bin.png" width="45%" alt="Heartbeat recycle bin" />
+</p>
+<p align="center">
   <img src="assets/heartbeats.png" width="60%" alt="Heartbeats view" />
   <img src="assets/phone.png" width="22%" alt="Dashboard on a phone" />
 </p>
@@ -220,7 +231,41 @@ itself and serves their state through a read-only API.
 | **Device Health (LWT)**    | Online/offline per topic and per node · Live counts in the navbar                  |
 | **Data Management**        | Entry count & size per topic · Retention by age/entries · SQLite WAL mode          |
 | **Wildcard Topics**        | `sensors/#` and `home/+/temp` subscriptions are logged                             |
+| **Secure Topics**          | Encrypted, signed per topic, found by themselves · Keys with CSV, expiry, revoke   |
 | **Deployment Flexibility** | Docker (multi-arch amd64 + arm64) · Home Assistant add-on · `pip install` CLI      |
+---
+
+## Minimum System Requirements
+
+| | Minimum | Recommended |
+| --- | --- | --- |
+| CPU | 1 core, ARMv8 (64-bit, e.g. Raspberry Pi 3) or x86-64 | 2 cores |
+| Memory | 128 MB free (SenseHive uses about 28 MB idle, 35 MB with 500 nodes and 100 busy topics) | 512 MB free |
+| Disk | 200 MB (image 57 MB) plus your data | 1 GB or more; about 0.35 MB per heartbeat node per day, topic data as published |
+| OS | Linux with Docker 20.10+, Home Assistant OS, or any OS with Python 3.9 to 3.13 | Linux with Docker |
+| Network | A reachable MQTT broker (the public default needs internet) | Your own broker on the LAN |
+| Clock | Correct time (NTP); secure topics and heartbeats refuse messages more than a few minutes off | |
+| Browser | A current Chrome, Edge, Firefox or Safari, desktop or phone | |
+
+Measured, not estimated: see [Performance](docs/PERFORMANCE.md).
+
+---
+
+## What's New in v1.7
+
+| Area | Change |
+| ---- | ------ |
+| Secure topics | Encrypted and signed per topic with keys SenseHive issues. Flash a device with a key, it publishes under `sensehive/secure/...`, and its topic **appears by itself**; nobody without the key can read, change or replay its data, even on a public broker. [Guide, device code and protocol](docs/SECURE-TOPICS.md) |
+| Keys | Generate 1 to 100 at a time with a label, shown once, **CSV download**; bound to their topic on first use; unused keys expire after 24 hours; show again with your password; revoke |
+| Open and secure | Topic logs has two cards, **Open topics** (added by hand) and **Secure topics** (found by themselves), each with an (i) guide |
+| Devices | Tested code for Python, MicroPython, Node.js and Node-RED, ESP32 (Arduino) |
+| Recycle bin | Move retired heartbeat nodes out of the list; restore them, delete them for good, or see when one comes back |
+
+<p align="center">
+  <img src="assets/secure-generate.png" width="45%" alt="Generate keys" />
+  <img src="assets/secure-guide.png" width="45%" alt="Secure topics guide" />
+</p>
+
 ---
 
 ## What's New in v1.6
@@ -513,7 +558,7 @@ docker pull devprincekumar/sense-hive:latest
 ```
 
 * One multi-arch image for AMD64 / x86 and ARM64 (Raspberry Pi 4/5); Docker picks the right one
-* Pin a release with `devprincekumar/sense-hive:1.6.1`; `edge` tracks the `main` branch
+* Pin a release with `devprincekumar/sense-hive:1.7.0`; `edge` tracks the `main` branch
 * `arm-pi-5` remains available and points to the same multi-arch release
 
 ---
@@ -772,6 +817,7 @@ Environment variables set the defaults for a new database:
 | `DB_PATH` | `/app/data/iot_dashboard.db` | Database location |
 | `HOST` / `PORT` | `0.0.0.0` / `5000` | Listen address for `python app.py` |
 | `HEARTBEAT_*` | off | Heartbeat receiver, see [Heartbeat receiver](#heartbeat-receiver-v12) |
+| `SENSEHIVE_SECURE_TOPICS` / `SENSEHIVE_SECURE_ROOT` | `true` / `sensehive/secure` | [Secure topics](docs/SECURE-TOPICS.md) on or off, and their root |
 | `SENSEHIVE_ADMIN_PASSWORD` | empty (`admin123`) | First password of the `admin` user in a new database (never printed) |
 | `SENSEHIVE_MAX_FAILED_LOGINS` / `SENSEHIVE_LOCK_MINUTES` | `5` / `15` | Sign-in is refused for a user or an address after this many failures in this window |
 | `SENSEHIVE_TRUST_PROXY` | `false` | Behind a reverse proxy: take the client address from `X-Real-IP` (limits per real client) |

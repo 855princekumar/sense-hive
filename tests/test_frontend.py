@@ -38,7 +38,7 @@ def test_the_built_files_match_their_checksums():
         listed[path] = digest
         with open(os.path.join(ROOT, 'static', path), 'rb') as fh:
             assert hashlib.sha256(fh.read()).hexdigest() == digest, path
-    assert {'dashboard.js', 'login.js', 'heartbeats.js', 'sensehive.css',
+    assert {'dashboard.js', 'login.js', 'heartbeats.js', 'secure.js', 'sensehive.css',
             'vendor/react.production.min.js', 'vendor/react-dom.production.min.js'} <= set(listed)
 
 

@@ -200,3 +200,64 @@ def test_an_online_node_has_no_current_break(hist):
     clock.t += 5
     assert history(hive, '1h')['current_break'] is None
     assert history(hive, '30d')['current_break'] is None
+
+
+# ---------------------------------------------------------------- recycle bin (1.7)
+
+def bin_call(hive, action, names, **kw):
+    c = hive.app.test_client()
+    c.post('/api/login', json={'username': 'admin', 'password': 'admin123'})
+    return c.post('/api/heartbeat/bin', json={'action': action, 'names': names, **kw})
+
+
+def test_a_binned_node_is_hidden_checked_but_not_stored_and_can_come_back(hist):
+    hive, clock = hist
+    run_node(hive, clock, 'dead-pi', seconds=60)
+    run_node(hive, clock, 'live-pi', seconds=60)
+    assert bin_call(hive, 'bin', ['dead-pi']).get_json()['changed'] == 1
+    names = [n['name'] for n in api(hive, '/api/heartbeat/nodes').get_json()['nodes']]
+    assert names == ['live-pi']                                   # hidden from the token API (EdgeShell) too
+    c = hive.app.test_client()
+    c.post('/api/login', json={'username': 'admin', 'password': 'admin123'})
+    binned = c.get('/api/heartbeat/bin').get_json()
+    assert [b['name'] for b in binned['nodes']] == ['dead-pi'] and binned['nodes'][0]['days_left'] == 30
+    assert binned['nodes'][0]['came_back_at'] is None
+    with hive.get_db() as conn:
+        before = conn.execute('SELECT COUNT(*) FROM hb_beats').fetchone()[0]
+    session = clock.t - 60
+    clock.t += 10
+    assert beat(hive, clock, 'dead-pi', 'hb', session)            # it is alive after all
+    with hive.get_db() as conn:
+        assert conn.execute('SELECT COUNT(*) FROM hb_beats').fetchone()[0] == before   # nothing stored
+    assert c.get('/api/heartbeat/bin').get_json()['nodes'][0]['came_back_at']        # "came back"
+    assert bin_call(hive, 'restore', ['dead-pi']).get_json()['changed'] == 1
+    assert {n['name'] for n in api(hive, '/api/heartbeat/nodes').get_json()['nodes']} == {'dead-pi', 'live-pi'}
+
+
+def test_delete_forever_only_from_the_bin_and_the_bin_empties_itself(hist):
+    hive, clock = hist
+    run_node(hive, clock, 'gone-pi', seconds=60)
+    run_node(hive, clock, 'old-pi', seconds=60)
+    assert bin_call(hive, 'delete', ['gone-pi']).get_json()['changed'] == 0      # not in the bin: kept
+    bin_call(hive, 'bin', ['gone-pi', 'old-pi'])
+    assert bin_call(hive, 'delete', ['gone-pi']).get_json()['changed'] == 1
+    with hive.get_db() as conn:
+        assert not conn.execute("SELECT 1 FROM hb_minutes WHERE name = 'gone-pi'").fetchone()
+        assert not conn.execute("SELECT 1 FROM hb_events WHERE name = 'gone-pi'").fetchone()
+        assert not conn.execute("SELECT 1 FROM hb_nodes WHERE name = 'gone-pi'").fetchone()
+    clock.t += 31 * 86400                                          # 30 days in the bin
+    hive.heartbeat_receiver.prune()
+    with hive.get_db() as conn:
+        assert not conn.execute("SELECT 1 FROM hb_nodes WHERE name = 'old-pi'").fetchone()
+
+
+def test_the_bin_needs_a_sign_in_and_checks_its_input(hist):
+    hive, clock = hist
+    run_node(hive, clock, 'pi', seconds=20)
+    c = hive.app.test_client()
+    assert c.get('/api/heartbeat/bin', headers={'Authorization': 'Bearer ' + TOKEN}).status_code == 401
+    assert c.post('/api/heartbeat/bin', json={'action': 'bin', 'names': ['pi']}).status_code in (401, 403)
+    for body in ({'action': 'bin', 'names': 'pi'}, {'action': 'bin', 'names': []}, {'action': 'burn', 'names': ['pi']},
+                 {'action': 'bin', 'names': [1]}, {'action': 'bin', 'names': ['x' * 300]}):
+        r = bin_call(hive, body['action'], body['names'])
+        assert r.status_code == 400, body

@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.7.0 (2026-10-18)
+
+**Secure topics** ([guide](docs/SECURE-TOPICS.md), ADR 0009)
+- Topics encrypted and signed per topic (AES-256-CTR and HMAC-SHA256, protocol
+  sst1) with keys SenseHive issues. A device publishes under
+  `sensehive/secure/...` and its topic appears by itself; nobody without the
+  key can read, change, move or replay its data.
+- Generate 1 to 100 keys at a time with a label, shown once, CSV download. A
+  key waits 24 hours for its first message, is then bound to that topic for
+  good, and otherwise expires. Key ids are never issued again. Show a key again
+  with your password; revoke it at once.
+- A secure device can name its status (last will) topic in a signed message
+  (`sensehive_lwt`) for online and offline.
+- Topic logs has two cards, **Open topics** and **Secure topics**, each with an
+  (i) guide; `?topics=secure` opens the secure view.
+- Device code tested in CI: Python, MicroPython, Node.js and Node-RED, and an
+  ESP32 Arduino sketch.
+- `SENSEHIVE_SECURE_TOPICS`, `SENSEHIVE_SECURE_ROOT`.
+
+**Heartbeats**
+- Recycle bin: move nodes that are gone for good out of the list and the read
+  API; heartbeats from a binned node are verified but not stored, and the bin
+  shows when one comes back. Restore, delete for good, or deleted after
+  `HEARTBEAT_BIN_DAYS` (30).
+
+**Topics**
+- `on` and `off` count as online and offline in status payloads.
+
+**Documentation**
+- Minimum system requirements, secure topics, recycle bin; new screenshots.
+
 ## 1.6.1 (2026-10-16)
 
 **Fixed**

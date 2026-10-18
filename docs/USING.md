@@ -21,8 +21,10 @@ contain double quotes or control characters and is at most 512 characters long.
 
 Two cards at the top choose what you see, with a short fade between them:
 
-- **Topic logs**: the MQTT topics you add, with topic and entry counts and how
-  many are active.
+- **Topic logs**: your MQTT topics, with topic and entry counts and how
+  many are active. Inside it, two cards: **Open topics** (added by hand) and
+  **Secure topics** (encrypted, found by themselves, see
+  [below](#secure-topics)).
 - **Heartbeats**: edge nodes running the heartbeat agent, found by themselves,
   with online, silent and offline counts. See [Heartbeats](HEARTBEAT.md#heartbeat-history-charts-and-csv-export).
 
@@ -60,10 +62,29 @@ Values arrive live over a server-sent event stream; every open tab updates.
 ## LWT status
 
 Give a topic its device's last-will topic and SenseHive shows **Active** or
-**Inactive** from the last payload on it. `online`, `connected`, `up`, `true`
-and `1` count as active; `offline`, `disconnected`, `down`, `false` and `0` as
-inactive. Other words can be set per topic (LWT online/offline values).
+**Inactive** from the last payload on it. `online`, `on`, `connected`, `up`,
+`true` and `1` count as active; `offline`, `off`, `disconnected`, `down`,
+`false` and `0` as inactive. A JSON payload is read from its `status` (or
+`state`) field, e.g. `{"status":"OFF"}`. Other words can be set per topic (LWT online/offline values).
 Topics without an LWT topic show **No LWT**.
+
+## Secure topics
+
+**Secure topics** are encrypted and signed per topic with a key SenseHive
+issues. A device that holds a key publishes under `sensehive/secure/...` and
+its topic appears by itself; nobody else can read or forge its data.
+
+![Secure topics](../assets/secure-topics.png)
+
+- **Generate keys** (1 to 100 at a time, with a label): the keys are shown once,
+  with **Download CSV**. A key waits 24 hours for its first message, then is
+  bound to that topic; unused keys expire.
+- The **key list** shows each key's status (pending, active, expired, revoked),
+  topic, messages and last use; filter by status. **Show key** needs your
+  password; **Revoke** stops a key at once.
+- Secure topic cards have **Details** and **CSV**, like open topics.
+
+Full guide, device code and the protocol: [Secure topics](SECURE-TOPICS.md).
 
 ## History and export
 
@@ -94,6 +115,18 @@ CSV export for one, the selected or all nodes. See
 [Heartbeats](HEARTBEAT.md#heartbeat-history-charts-and-csv-export).
 
 ![Heartbeats](../assets/heartbeats.png)
+
+### Recycle bin
+
+Nodes that are gone for good (retired, replaced) can be moved out of the list:
+select them and **Move to bin**. A binned node is hidden from the list and from
+the read API (EdgeShell keeps its last known state); its heartbeats are still
+checked, but nothing is stored. If it sends heartbeats again, the
+**Recycle bin** button shows **came back**. In the bin, **Restore** puts nodes
+back, **Delete for good** removes them and their history; after
+`HEARTBEAT_BIN_DAYS` (30) days they are deleted by themselves.
+
+![Recycle bin](../assets/heartbeat-bin.png)
 
 ## On a phone
 

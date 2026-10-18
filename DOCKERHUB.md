@@ -32,7 +32,8 @@ under **Settings**.
 | Tag | Description |
 | --- | ----------- |
 | `latest` | Latest release, multi-arch (amd64 + arm64) |
-| `1.6.1`, `1.6` | SenseHive 1.6.1, multi-arch |
+| `1.7.0`, `1.7` | SenseHive 1.7.0, multi-arch |
+| `1.6.1`, `1.6` | SenseHive 1.6.1 |
 | `1.6.0` | SenseHive 1.6.0 |
 | `1.5.0`, `1.5` | SenseHive 1.5.0 |
 | `1.4.2`, `1.4` | SenseHive 1.4.2 |
@@ -61,6 +62,17 @@ Apple Silicon). Docker picks the right architecture automatically.
 | Security | Login-protected UI and API, no CDN and a strict Content Security Policy, SQL-safe topic names, salted slow password hashes, lockout after repeated failed sign-ins, CSRF protection, HttpOnly cookies, persistent random session secret, no data baked into the image |
 | Operations | `/api/health` and `/api/status` endpoints, Docker HEALTHCHECK, timezone-aware timestamps |
 | Heartbeats (1.2) | Optional receiver for the [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service): encrypted, authenticated heartbeats and LWT over a public broker, `/heartbeats` page, read-only API. Off unless `HEARTBEAT_MASTER_KEY` is set |
+
+## What's new in 1.7.0
+
+- Secure topics: encrypted and signed per topic with keys SenseHive issues; devices publish under `sensehive/secure/...` and their topics appear by themselves. Bulk keys with CSV, keys bound on first use, unused keys expire, show again with the password, revoke
+- Device code for Python, MicroPython, Node.js and Node-RED, and ESP32
+- Heartbeat recycle bin: hide retired nodes, restore, delete for good, see when one comes back
+- Guide: https://github.com/855princekumar/sense-hive/blob/main/docs/SECURE-TOPICS.md
+
+## Minimum requirements
+
+1 core (ARMv8 64-bit or x86-64), 128 MB free memory (uses about 28 MB idle), 200 MB disk plus data, Docker 20.10+, a reachable MQTT broker, a correct clock (NTP).
 
 ## What's new in 1.6.1
 
