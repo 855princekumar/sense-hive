@@ -99,3 +99,35 @@ def test_publish_log_history_lwt_and_retention(running_app):
     session.post('/api/settings/retention', {'retention_days': 0, 'retention_max_entries': 2})
     assert session.post('/api/retention/run', {})['deleted'] == 3
     assert len(session.get(f"/api/nodes/{temp['id']}/history")['history']) == 2
+
+
+def test_a_secure_topic_is_found_through_a_real_broker(running_app):
+    """Generate a key, publish an encrypted message to the broker, and the topic appears with its value;
+    a forged message on the same broker is dropped."""
+    import paho.mqtt.client as mqtt
+
+    sys.path.insert(0, str(APP_DIR))
+    import secure
+
+    session, host, port = running_app
+    assert session.post('/api/login', {'username': 'admin', 'password': 'admin123'})['success']
+    made = session.post('/api/secure/keys', {'count': 1, 'label': 'it-device'})
+    key = made['keys'][0]
+    topic = f"{made['root']}/it-{uuid.uuid4().hex[:8]}/flow"
+    pub = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2) if hasattr(mqtt, 'CallbackAPIVersion') else mqtt.Client()
+    pub.connect(host, port)
+    pub.loop_start()
+    try:
+        pub.publish(topic, secure.seal(bytes(32), key['kid'], topic, '{"forged": 1}'), qos=1).wait_for_publish()
+        pub.publish(topic, secure.seal(bytes.fromhex(key['key']), key['kid'], topic, '{"flow": 7.5}'), qos=1).wait_for_publish()
+    finally:
+        pub.loop_stop()
+        pub.disconnect()
+
+    def found():
+        return next((n for n in session.get('/api/nodes') if n['topic'] == topic), None)
+
+    node = wait_for(found)
+    assert node and node['secure'] == 1 and node['last_value'] == {'flow': 7.5} and node['entry_count'] == 1
+    status = session.get('/api/secure/status')
+    assert status['rejected']['signature'] >= 1 and status['keys']['active'] == 1

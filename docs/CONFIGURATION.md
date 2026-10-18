@@ -30,6 +30,18 @@ secret store, never in a compose file you commit.
 | `DEFAULT_TIMEZONE` | `UTC` | Timezone for a new database |
 | `SENSEHIVE_TIMEZONE` | empty | Overrides the stored timezone on every start (CLI `--timezone`) |
 
+## Secure topics
+
+See [Secure topics](SECURE-TOPICS.md).
+
+| Variable | Default | Purpose |
+| -------- | ------- | ------- |
+| `SENSEHIVE_SECURE_TOPICS` | `true` | `false` turns secure topics off |
+| `SENSEHIVE_SECURE_ROOT` | `sensehive/secure` | Devices publish under this root; SenseHive subscribes to `<root>/#` and adds new topics by themselves |
+
+`SECRET_KEY` also encrypts the stored keys: keep it (or its file) with the
+database.
+
 ## Retention
 
 | Variable | Default | Purpose |
@@ -67,6 +79,7 @@ Off unless `HEARTBEAT_MASTER_KEY` is set. See [Heartbeats](HEARTBEAT.md).
 | `HEARTBEAT_KEEP_DAYS` | `30` | How long per-minute presence and events are kept |
 | `HEARTBEAT_BEATS_HOURS` | `48` | How long every single heartbeat is kept (charts up to 1 day, CSV); `0` keeps none. About 0.35 MB per node per day (0.7 MB for 48 hours, measured) |
 | `HEARTBEAT_MIN_SPACING` | `2` | Seconds a node must leave between heartbeats; faster ones are dropped as a flood |
+| `HEARTBEAT_BIN_DAYS` | `30` | Days a node stays in the recycle bin before it is deleted for good |
 
 Generate the secrets with:
 

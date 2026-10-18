@@ -112,6 +112,7 @@ class Receiver:
         self.keep_days = max(_int('HEARTBEAT_KEEP_DAYS', 30), 1)
         self.beats_hours = min(max(_int('HEARTBEAT_BEATS_HOURS', 48), 0), 24 * 31)
         self.min_spacing = max(_int('HEARTBEAT_MIN_SPACING', 2), 0)
+        self.bin_days = max(_int('HEARTBEAT_BIN_DAYS', 30), 1)     # the recycle bin keeps nodes this long
         self.rejected = 0
         self.flooded = 0
         self.last_rx = {}
@@ -125,6 +126,10 @@ class Receiver:
         with self.db() as conn:
             for stmt in SCHEMA:
                 conn.execute(stmt)
+            cols = {r[1] for r in conn.execute('PRAGMA table_info(hb_nodes)')}
+            for col in ('binned_at', 'came_back_at'):          # the recycle bin (1.7)
+                if col not in cols:
+                    conn.execute(f'ALTER TABLE hb_nodes ADD COLUMN {col} REAL')
             conn.commit()
             for r in conn.execute('SELECT * FROM hb_nodes'):
                 self.tracker.nodes[r['name']] = {
@@ -137,6 +142,14 @@ class Receiver:
         now = self.clock()
         status = self.tracker.status(name, now=now, stale_after=self.stale)
         with self.db() as conn:
+            binned = conn.execute('SELECT binned_at FROM hb_nodes WHERE name = ?', (name,)).fetchone()
+            if binned and binned['binned_at']:
+                # in the recycle bin: verified, not stored; note that it came back
+                if body is not None and body['k'] != 'lwt':
+                    conn.execute('UPDATE hb_nodes SET came_back_at = ?, last_seen = ? WHERE name = ?',
+                                 (now, st['last_seen'], name))
+                    conn.commit()
+                return
             # an UPSERT keeps the row (and its rowid, which hb_beats refers to)
             conn.execute('INSERT INTO hb_nodes (name, status, session, last_t, last_seen, since, version) '
                          'VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET status = excluded.status, '
@@ -245,8 +258,8 @@ class Receiver:
         with self.lock, self.db() as conn:
             for name in list(self.tracker.nodes):
                 status = self.tracker.status(name, now=now, stale_after=self.stale)
-                row = conn.execute('SELECT status FROM hb_nodes WHERE name = ?', (name,)).fetchone()
-                if row and row['status'] != status:
+                row = conn.execute('SELECT status, binned_at FROM hb_nodes WHERE name = ?', (name,)).fetchone()
+                if row and row['status'] != status and not row['binned_at']:
                     conn.execute('UPDATE hb_nodes SET status = ? WHERE name = ?', (status, name))
                     conn.execute('INSERT INTO hb_events (name, status, at) VALUES (?, ?, ?)', (name, status, now))
             conn.commit()
@@ -258,12 +271,61 @@ class Receiver:
             conn.execute('DELETE FROM hb_events WHERE at < ?', (cutoff,))
             conn.execute('DELETE FROM hb_beats WHERE t < ?', (self.clock() - self.beats_hours * 3600,))
             conn.commit()
+        old = [r['name'] for r in self._binned_rows() if r['binned_at'] < self.clock() - self.bin_days * 86400]
+        if old:
+            self.delete_forever(old)
+
+    # ------------------------------------------------------------------ recycle bin
+    def _binned_rows(self):
+        with self.db() as conn:
+            return conn.execute('SELECT * FROM hb_nodes WHERE binned_at IS NOT NULL ORDER BY binned_at DESC').fetchall()
+
+    def bin(self, names):
+        """Move nodes to the recycle bin: hidden everywhere, still verified, nothing stored."""
+        now = self.clock()
+        with self.db() as conn:
+            n = sum(conn.execute('UPDATE hb_nodes SET binned_at = ?, came_back_at = NULL WHERE name = ? AND binned_at IS NULL',
+                                 (now, name)).rowcount for name in names)
+            conn.commit()
+        return n
+
+    def restore(self, names):
+        with self.db() as conn:
+            n = sum(conn.execute('UPDATE hb_nodes SET binned_at = NULL, came_back_at = NULL WHERE name = ? '
+                                 'AND binned_at IS NOT NULL', (name,)).rowcount for name in names)
+            conn.commit()
+        return n
+
+    def delete_forever(self, names):
+        """Only nodes in the bin: their heartbeats, minutes, events and the node itself."""
+        gone = 0
+        with self.db() as conn:
+            for name in names:
+                row = conn.execute('SELECT rowid FROM hb_nodes WHERE name = ? AND binned_at IS NOT NULL', (name,)).fetchone()
+                if not row:
+                    continue
+                conn.execute('DELETE FROM hb_beats WHERE node = ?', (row[0],))
+                conn.execute('DELETE FROM hb_minutes WHERE name = ?', (name,))
+                conn.execute('DELETE FROM hb_events WHERE name = ?', (name,))
+                conn.execute('DELETE FROM hb_nodes WHERE rowid = ?', (row[0],))
+                self.tracker.nodes.pop(name, None)
+                self.last_rx.pop(name, None)
+                gone += 1
+            conn.commit()
+        return gone
+
+    def binned(self):
+        now = self.clock()
+        return [{'name': r['name'], 'binned_at': r['binned_at'], 'came_back_at': r['came_back_at'],
+                 'last_seen': r['last_seen'], 'agent_version': r['version'],
+                 'days_left': max(0, round(self.bin_days - (now - r['binned_at']) / 86400, 1))}
+                for r in self._binned_rows()]
 
     # ------------------------------------------------------------------ API data
     def nodes(self):
         now = self.clock()
         with self.db() as conn:
-            rows = conn.execute('SELECT * FROM hb_nodes ORDER BY name').fetchall()
+            rows = conn.execute('SELECT * FROM hb_nodes WHERE binned_at IS NULL ORDER BY name').fetchall()
         out = []
         for r in rows:
             out.append({'name': r['name'],
@@ -290,7 +352,7 @@ class Receiver:
 
     def node_names(self):
         with self.db() as conn:
-            return [r['name'] for r in conn.execute('SELECT name FROM hb_nodes ORDER BY name')]
+            return [r['name'] for r in conn.execute('SELECT name FROM hb_nodes WHERE binned_at IS NULL ORDER BY name')]
 
     def beats(self, name, since, until):
         with self.db() as conn:
@@ -461,6 +523,29 @@ def register(app, get_db, login_ok, client_factory):
             return jsonify({'error': 'Authentication required'}), 401
         return jsonify({'enabled': rx.enabled, 'connected': rx.connected, 'rejected': rx.rejected,
                         'flooded': rx.flooded, 'nodes': len(rx.tracker.nodes)})
+
+    @app.route('/api/heartbeat/bin', methods=['GET', 'POST'])
+    def heartbeat_bin():
+        """The recycle bin: signed-in users only (never the read-only token)."""
+        if not login_ok():
+            return jsonify({'error': 'Authentication required'}), 401
+        if request.method == 'GET':
+            return jsonify({'nodes': rx.binned(), 'days': rx.bin_days})
+        data = request.get_json(silent=True) or {}
+        names = data.get('names')
+        if not isinstance(names, list) or not names or len(names) > 5000 or \
+                not all(isinstance(n, str) and 0 < len(n) <= 200 for n in names):
+            return jsonify({'success': False, 'error': 'names must be a list of node names'}), 400
+        action = data.get('action')
+        if action == 'bin':
+            n = rx.bin(names)
+        elif action == 'restore':
+            n = rx.restore(names)
+        elif action == 'delete':
+            n = rx.delete_forever(names)
+        else:
+            return jsonify({'success': False, 'error': 'action must be bin, restore or delete'}), 400
+        return jsonify({'success': True, 'changed': n})
 
     @app.route('/api/heartbeat/nodes')
     def heartbeat_nodes():

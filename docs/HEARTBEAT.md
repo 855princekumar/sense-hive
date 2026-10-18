@@ -109,6 +109,13 @@ page within seconds.
 Each change is stored as an event; the minutes with a heartbeat are stored for
 `HEARTBEAT_KEEP_DAYS` (30) to measure uptime exactly.
 
+A node that is gone for good can be moved to the **recycle bin** (Heartbeats
+page, select, **Move to bin**). It disappears from the list and from
+`/api/heartbeat/nodes`; heartbeats from it are still verified but not stored,
+and the bin marks it **came back** if it starts again. Restore it, delete it
+for good, or let it be deleted after `HEARTBEAT_BIN_DAYS` (30). See
+[Using SenseHive](USING.md#recycle-bin).
+
 ## Heartbeat history, charts and CSV export
 
 Open the dashboard and choose the **Heartbeats** card. Every node the receiver

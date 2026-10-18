@@ -242,6 +242,66 @@
         );
     }
 
+    // ------------------------------------------------------------- recycle bin
+    // Nodes moved here are hidden, still checked, and nothing is stored for them;
+    // "came back" marks one that sent heartbeats again. Emptied after 30 days.
+    function Bin({ list, days, darkMode, cardBg, borderClass, onClose, onAction }) {
+        const [picked, setPicked] = useState(new Set());
+        const [sure, setSure] = useState(false);
+        const [msg, setMsg] = useState('');
+        const names = [...picked];
+        const act = (action) => onAction(action, names).then((n) => { setMsg((action === 'restore' ? 'Restored ' : 'Deleted ') + n); setPicked(new Set()); setSure(false); })
+            .catch((e) => setMsg(e.message));
+        const btn = `px-3 py-2 rounded-lg text-sm font-medium border ${borderClass} ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} disabled:opacity-50 transition-colors`;
+        return ReactDOM.createPortal(
+            <div className="sh-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4" onClick={onClose}>
+                <div id="hbBinDialog" className={`sh-modal ${cardBg} rounded-xl max-w-2xl w-full min-w-0`} role="dialog" aria-modal="true" aria-label="Recycle bin"
+                    onClick={(e) => e.stopPropagation()}>
+                    <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex-shrink-0">
+                        <h2 className="text-xl font-bold">Recycle bin</h2>
+                        <p className="text-sm text-gray-500 mt-1">Dead nodes wait here {days} days, then they are deleted. They are still checked but nothing is stored.</p>
+                    </div>
+                    <div className="sh-modal-body px-5 sm:px-6 pb-3 text-sm">
+                        {list.length === 0 ? <p className="text-gray-500 py-6">The recycle bin is empty.</p> : (
+                            <div className="overflow-x-auto">
+                                <table id="hbBinTable" className="w-full">
+                                    <thead><tr className={`text-left text-xs uppercase tracking-wide text-gray-500 border-b ${borderClass}`}>
+                                        <th className="py-2 pr-2 w-8" /><th className="py-2 pr-3">Node</th><th className="py-2 pr-3 whitespace-nowrap">In the bin since</th>
+                                        <th className="py-2 pr-3 whitespace-nowrap">Deleted in</th><th className="py-2" />
+                                    </tr></thead>
+                                    <tbody>{list.map((n) => (
+                                        <tr key={n.name} className={`border-b last:border-b-0 ${borderClass}`}>
+                                            <td className="py-2 pr-2"><input type="checkbox" aria-label={'Select ' + n.name} checked={picked.has(n.name)}
+                                                onChange={() => setPicked((s) => { const x = new Set(s); x.has(n.name) ? x.delete(n.name) : x.add(n.name); return x; })} /></td>
+                                            <td className="py-2 pr-3 font-medium break-all">{n.name}</td>
+                                            <td className="py-2 pr-3 whitespace-nowrap">{ago(n.binned_at)}</td>
+                                            <td className="py-2 pr-3 whitespace-nowrap">{n.days_left} days</td>
+                                            <td className="py-2 whitespace-nowrap">{n.came_back_at &&
+                                                <span className="hb-came-back px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800" title={'Heartbeat ' + ago(n.came_back_at)}>came back</span>}</td>
+                                        </tr>
+                                    ))}</tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                    <div className={`flex flex-wrap items-center justify-end gap-2 px-5 sm:px-6 py-4 border-t ${borderClass} flex-shrink-0`}>
+                        <span className="mr-auto text-sm text-gray-500">{msg}</span>
+                        {sure ? (<>
+                            <span className="text-sm text-red-600">Delete {names.length} for good, with all their history?</span>
+                            <button type="button" className={btn} onClick={() => setSure(false)}>No</button>
+                            <button id="hbBinDeleteYes" type="button" className="px-3 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 text-white" onClick={() => act('delete')}>Delete</button>
+                        </>) : (<>
+                            <button id="hbBinDelete" type="button" className={btn} disabled={!names.length} onClick={() => setSure(true)}>Delete for good</button>
+                            <button id="hbBinRestore" type="button" className={btn} disabled={!names.length} onClick={() => act('restore')}>Restore ({names.length})</button>
+                            <button type="button" className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white" onClick={onClose}>Close</button>
+                        </>)}
+                    </div>
+                </div>
+            </div>,
+            document.body
+        );
+    }
+
     // ------------------------------------------------------------- view
     function HeartbeatsView({ darkMode, cardBg, borderClass }) {
         const [info, setInfo] = useState(null);
@@ -250,8 +310,17 @@
         const [what, setWhat] = useState('beats');
         const [period, setPeriod] = useState('86400');
         const [state, setState] = useState('all');                 // all | online | offline | silent
-        const load = useCallback(() => fetch('api/heartbeat/nodes').then((r) => r.json()).then(setInfo).catch(() => {}), []);
+        const [bin, setBin] = useState({ nodes: [], days: 30 });
+        const [binOpen, setBinOpen] = useState(false);
+        const load = useCallback(() => {
+            fetch('api/heartbeat/nodes').then((r) => r.json()).then(setInfo).catch(() => {});
+            fetch('api/heartbeat/bin').then((r) => r.ok ? r.json() : null).then((d) => d && setBin(d)).catch(() => {});
+        }, []);
         useEffect(() => { load(); const t = setInterval(load, 10000); return () => clearInterval(t); }, [load]);
+        const binAction = (action, names) => fetch('api/heartbeat/bin', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, names }),
+        }).then((r) => r.json().then((d) => { if (!r.ok) throw new Error(d.error || 'Failed'); load(); return d.changed; }));
+        const toBin = () => binAction('bin', [...selected]).then(() => setSelected(new Set())).catch(() => {});
         const all = info ? info.nodes : [];
         const counts = useMemo(() => all.reduce((c, n) => (c[n.status] = (c[n.status] || 0) + 1, c), {}), [all]);
         const nodes = state === 'all' ? all : all.filter((n) => n.status === state);
@@ -294,6 +363,17 @@
                     <button id="hbExportAll" disabled={!nodes.length} onClick={() => download(exportUrl('all', what, +period))}
                         className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap border ${borderClass} ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} disabled:opacity-50 transition-colors`}>
                         All nodes
+                    </button>
+                    <button id="hbToBin" disabled={!selected.size} onClick={toBin} title="Move dead nodes to the recycle bin"
+                        className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap border ${borderClass} ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} disabled:opacity-50 transition-colors`}>
+                        Move to bin ({selected.size})
+                    </button>
+                    <button id="hbBinOpen" onClick={() => setBinOpen(true)} title="Nodes in the recycle bin"
+                        className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap border ${borderClass} ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}>
+                        Recycle bin ({bin.nodes.length})
+                        {bin.nodes.some((n) => n.came_back_at) && (
+                            <span className="ml-1.5 px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-800" title="A node in the bin is sending heartbeats again">came back</span>
+                        )}
                     </button>
                 </div>
 
@@ -352,6 +432,8 @@
                     Every heartbeat is kept for 48 hours, online minutes and status changes for 30 days.
                 </p>
                 {open && <History node={open} dark={darkMode} cardBg={cardBg} borderClass={borderClass} onClose={() => setOpen(null)} />}
+                {binOpen && <Bin list={bin.nodes} days={bin.days} darkMode={darkMode} cardBg={cardBg} borderClass={borderClass}
+                    onClose={() => setBinOpen(false)} onAction={binAction} />}
             </div>
         );
     }

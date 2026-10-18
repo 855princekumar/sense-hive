@@ -84,6 +84,29 @@
                 ],
                 tips: ['JSON payloads are shown as fields; anything else as text.', 'Messages over 64 KB are dropped to protect the disk.'],
             },
+            open: {
+                title: 'Open topics',
+                intro: 'Plain MQTT topics you add by hand. Anyone who can read the broker can read them; use them for data that is not sensitive, or on a private broker.',
+                steps: [
+                    ['Add a topic', 'Add Node: the topic (wildcards work), a node ID and a tag. It is subscribed at once.'],
+                    ['Publish', 'Devices publish plain text or JSON to it. Every message is kept with its time.'],
+                    ['Read and export', 'Cards update live; Details shows the last 50 values; CSV exports everything.'],
+                ],
+                tips: ['Topics under the secure root are never open topics: they belong to Secure topics.'],
+            },
+            secure: {
+                title: 'Secure topics',
+                intro: 'Topics encrypted and signed with a key SenseHive gives you, one key per topic. Nobody on the broker can read or fake them, and they appear here by themselves.',
+                steps: [
+                    ['Generate keys', 'Generate keys: one, or many at once (with a label). Each has a key ID and a key, shown once: download the CSV and keep it safe.'],
+                    ['Give the device its key', 'The device encrypts with its key and publishes under the secure root shown at the top. Ready-made code: Python, MicroPython (ESP32), Arduino (ESP32), Node-RED (link below).'],
+                    ['It appears by itself', 'The first valid message makes the key active, binds it to that topic, and the topic shows up here with its value. No Add Node needed.'],
+                    ['Unused keys expire', 'A key that sends nothing for 24 hours expires and can never be used or issued again. Expired keys stay listed as a log.'],
+                    ['Lost or stolen device', 'Revoke its key: it can no longer publish. The topic and its history stay. Show key needs your password.'],
+                ],
+                tips: ['A forged, changed, replayed or more than 5 minutes old message is dropped and counted as refused.', 'Devices need the right time (NTP).'],
+                link: ['Secure topics guide and device code (opens GitHub)', 'https://github.com/855princekumar/sense-hive/blob/main/docs/SECURE-TOPICS.md'],
+            },
             heartbeats: {
                 title: 'Heartbeats',
                 intro: 'Edge nodes running the MQTT heartbeat agent send an encrypted heartbeat every 10 seconds and leave a last will. SenseHive finds them by itself: there is nothing to add here.',
@@ -131,6 +154,14 @@
             });
             const [leaving, setLeaving] = useState(false);
             const [guide, setGuide] = useState(null);
+            const [topicKind, setTopicKind] = useState(() => {
+                try { return new URLSearchParams(window.location.search).get('topics') === 'secure' ? 'secure' : 'open'; }
+                catch (e) { return 'open'; }
+            });
+            const switchTopics = (kind) => {
+                setTopicKind(kind);
+                try { window.history.replaceState(null, '', kind === 'secure' ? '?topics=secure' : window.location.pathname); } catch (e) { /* ignore */ }
+            };
             const [hbSummary, setHbSummary] = useState(null);
             const switchView = (next) => {
                 if (next === view || leaving) return;
@@ -210,6 +241,8 @@
                         const data = JSON.parse(event.data);
                         if (data.type === 'lwt') {
                             updateLwtStatus(data.lwt_topic, data.status, data.timestamp);
+                        } else if (data.secure && data.new) {
+                            fetchNodes();                             // a secure topic found by itself
                         } else if (data.topic && data.payload !== undefined) {
                             updateNodeData(data.topic, data.payload);
                         }
@@ -275,7 +308,9 @@
 
             const STATUS_ORDER = { active: 0, unknown: 1, untracked: 2, inactive: 3 };
 
-            const visibleNodes = nodes
+            const openNodes = nodes.filter(n => !n.secure);
+            const secureNodes = nodes.filter(n => n.secure);
+            const visibleNodes = openNodes
                 .filter(node => filterTag === 'all' || node.tag === filterTag)
                 .filter(node => filterStatus === 'all' || (node.status || 'untracked') === filterStatus
                     || (filterStatus === 'untracked' && !STATUS_STYLES[node.status]))
@@ -292,8 +327,8 @@
                     }
                 });
 
-            const allTags = [...new Set(nodes.map(n => n.tag).filter(Boolean))].sort();
-            const allNodeNames = [...new Set(nodes.map(n => n.node_name).filter(Boolean))].sort();
+            const allTags = [...new Set(openNodes.map(n => n.tag).filter(Boolean))].sort();
+            const allNodeNames = [...new Set(openNodes.map(n => n.node_name).filter(Boolean))].sort();
 
             const nodeGroups = groupByNode
                 ? Object.entries(visibleNodes.reduce((groups, node) => {
@@ -676,7 +711,7 @@
                                     </div>
                                 </div>
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-sm">
-                                    <span className="whitespace-nowrap"><b>{nodes.length}</b> topics</span>
+                                    <span className="whitespace-nowrap"><b>{nodes.length}</b> topics{secureNodes.length ? ` (${secureNodes.length} secure)` : ''}</span>
                                     <span className="whitespace-nowrap"><b>{nodes.reduce((sum, n) => sum + (n.entry_count || 0), 0).toLocaleString()}</b> entries</span>
                                     {stats && <span className="flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-green-500" />{stats.topics.active} active</span>}
                                     {stats && <span className="flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-red-500" />{stats.topics.inactive} inactive</span>}
@@ -731,12 +766,46 @@
                                 ? React.createElement(window.SenseHiveHeartbeats, { darkMode, cardBg, borderClass })
                                 : <div className="text-center py-16 text-gray-500">The heartbeats view did not load.</div>
                         ) : (<>
-                        {nodes.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5" role="tablist" aria-label="Kinds of topics">
+                            {[['open', 'Open topics', openNodes.length, 'Plain MQTT, added by hand'], ['secure', 'Secure topics', secureNodes.length, 'Encrypted with a key, found by themselves']].map(([kind, title, count, sub]) => (
+                                <div key={kind} className="relative min-w-0">
+                                    <button id={kind === 'open' ? 'kindOpen' : 'kindSecure'} type="button" role="tab" aria-selected={topicKind === kind}
+                                        onClick={() => switchTopics(kind)}
+                                        className={`w-full text-left ${cardBg} border rounded-xl px-4 py-3 pr-12 min-w-0 transition ${topicKind === kind ? 'border-blue-600 ring-2 ring-blue-500 ring-opacity-30' : borderClass}`}>
+                                        <div className="flex items-center gap-3">
+                                            <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${kind === 'secure' ? 'bg-blue-600 text-white' : (darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700')}`}>
+                                                {kind === 'secure'
+                                                    ? <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+                                                    : <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 7.5-2" /></svg>}
+                                            </span>
+                                            <div className="min-w-0">
+                                                <div className="font-semibold leading-tight">{title} <span className="text-gray-500 font-normal">({count})</span></div>
+                                                <div className="text-xs text-gray-500">{sub}</div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                    <button id={kind === 'open' ? 'infoOpen' : 'infoSecure'} type="button" title={'What are ' + title.toLowerCase() + '?'} aria-label={'Guide: ' + title}
+                                        onClick={() => setGuide(kind)}
+                                        className={`sh-info absolute top-1/2 -translate-y-1/2 right-3 w-8 h-8 rounded-full flex items-center justify-center border ${borderClass} ${darkMode ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-white hover:bg-gray-100 text-gray-500'} transition-colors`}>
+                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                                            <circle cx="12" cy="12" r="10" /><path d="M12 16v-5" /><path d="M12 8h.01" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                        {topicKind === 'secure' ? (
+                            window.SenseHiveSecure
+                                ? React.createElement(window.SenseHiveSecure, { darkMode, cardBg, borderClass, nodes: secureNodes,
+                                    onDetails: (node) => setShowDetails(node), refresh: fetchNodes, formatValue })
+                                : <div className="text-center py-16 text-gray-500">The secure topics view did not load.</div>
+                        ) : (<>
+                        {openNodes.length > 0 && (
                             <div className={`sh-bar ${cardBg} border ${borderClass} rounded-xl px-4 py-3 mb-6 flex flex-wrap items-center gap-3 text-sm`}>
                                 <div className="flex flex-wrap items-center gap-3 mr-auto">
-                                    <span className="text-gray-500">Topics: <b>{nodes.length}</b></span>
+                                    <span className="text-gray-500">Topics: <b>{openNodes.length}</b></span>
                                     <span className="text-gray-500">Nodes: <b>{allNodeNames.length}</b></span>
-                                    <span className="text-gray-500">Entries: <b>{nodes.reduce((sum, n) => sum + (n.entry_count || 0), 0).toLocaleString()}</b></span>
+                                    <span className="text-gray-500">Entries: <b>{openNodes.reduce((sum, n) => sum + (n.entry_count || 0), 0).toLocaleString()}</b></span>
                                     <span className="text-gray-500">DB size: <b>{formatBytes(stats?.db_size_bytes)}</b></span>
                                 </div>
                                 <label className="flex items-center gap-2 text-gray-500">
@@ -786,7 +855,7 @@
                             </div>
                         )}
 
-                        {nodes.length === 0 ? (
+                        {openNodes.length === 0 ? (
                             <div className="text-center py-20">
                                 <Icons.Activity className="w-16 h-16 mx-auto text-gray-500 mb-4" />
                                 <h2 className="text-2xl font-semibold mb-2">No Nodes Yet</h2>
@@ -883,6 +952,7 @@
                             </div>
                             </div>
                         ))}
+                        </>)}
                         </>)}
                         </div>
                     </div>

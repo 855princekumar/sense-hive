@@ -38,6 +38,7 @@ Everything from MQTT and from the network is treated as hostile:
 | Request bodies | Over 1 MB refused before they are read (413) |
 | Numbers in queries | Only finite numbers accepted (`nan`, `inf` fall back to defaults) |
 | Live-update streams | At most `SENSEHIVE_MAX_STREAMS` (50) at once; more get 503 |
+| Secure topics | Signed and encrypted per topic (sst1, [ADR 0009](adr/0009-secure-topics.md)): wrong key, wrong topic, changed, stale or replayed messages dropped and counted; open topics cannot be added under the secure root |
 | Heartbeats | Verified, fresh and in order (see [ADR 0002](adr/0002-heartbeat-receiver.md)); a node faster than `HEARTBEAT_MIN_SPACING` is dropped as a flood |
 | API tokens | 20 wrong tokens from one address in 15 minutes lock that address out for a while |
 | Health endpoint | The exact version is shown only to signed-in users and token holders (no fingerprinting) |
@@ -150,7 +151,9 @@ sign-in and a fresh 2FA code.
 
 `SENSEHIVE_ADMIN_PASSWORD`, `DEFAULT_BROKER_PASSWORD`, `HEARTBEAT_MASTER_KEY`,
 `HEARTBEAT_API_TOKEN` and `SECRET_KEY` belong in `.env` or a secret store,
-never in the repository. The image ships no database and no secrets. A session
+never in the repository. `SECRET_KEY` (or the generated `secret_key` file)
+also encrypts the stored secure topic keys; a key is shown once when created
+and again only after its owner enters their password. The image ships no database and no secrets. A session
 secret generated on first start is written readable by its owner only (0600).
 
 ## Checks on every change

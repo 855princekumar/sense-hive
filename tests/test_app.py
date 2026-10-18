@@ -170,7 +170,7 @@ def test_add_duplicate_topic_rejected(client, add_topic):
 
 def test_add_topic_subscribes_data_and_lwt_topics(sh, add_topic):
     add_topic('dev1/temp', lwt_topic='dev1/status')
-    assert set(sh.mqtt_client.subscribed) == {'dev1/temp', 'dev1/status'}
+    assert set(sh.mqtt_client.subscribed) == {'dev1/temp', 'dev1/status', 'sensehive/secure/#'}   # + the secure root
 
 
 def test_update_topic_changes_grouping_and_resubscribes(sh, client, add_topic):

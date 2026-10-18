@@ -11,6 +11,20 @@ that fits your machine; all of them give the same dashboard on port 5000.
 | [Home Assistant](#home-assistant) | A Home Assistant OS box | `/data/iot_dashboard.db` (in HA backups) |
 | [From source](#from-source) | Development | `version-1.0/data/` unless `DB_PATH` is set |
 
+## Minimum system requirements
+
+| | Minimum | Recommended |
+| --- | --- | --- |
+| CPU | 1 core, ARMv8 (64-bit, e.g. Raspberry Pi 3) or x86-64 | 2 cores |
+| Memory | 128 MB free (SenseHive uses about 28 MB idle, 35 MB with 500 nodes and 100 busy topics) | 512 MB free |
+| Disk | 200 MB (image 57 MB) plus your data | 1 GB or more; about 0.35 MB per heartbeat node per day, topic data as published |
+| OS | Linux with Docker 20.10+, Home Assistant OS, or any OS with Python 3.9 to 3.13 | Linux with Docker |
+| Network | A reachable MQTT broker (the public default needs internet) | Your own broker on the LAN |
+| Clock | Correct time (NTP); secure topics and heartbeats refuse messages more than a few minutes off | |
+| Browser | A current Chrome, Edge, Firefox or Safari, desktop or phone | |
+
+Measured, not estimated: see [Performance](PERFORMANCE.md).
+
 ## Docker
 
 ```bash
@@ -112,7 +126,9 @@ sign-in.
 
 ## Backups
 
-The whole state is the database file. Copy it while SenseHive is stopped, or
+The whole state is the database file, plus the secret key file next to it
+(`secret_key`, unless `SECRET_KEY` is set): it signs sessions and encrypts the
+[secure topic](SECURE-TOPICS.md) keys, so back it up with the database. Copy it while SenseHive is stopped, or
 use SQLite's online backup while it runs:
 
 ```bash
