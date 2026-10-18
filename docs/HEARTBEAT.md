@@ -27,11 +27,13 @@ and its own tables. Turning one on or off never affects the other.
 4. [Node states](#node-states)
 5. [Heartbeat history, charts and CSV export](#heartbeat-history-charts-and-csv-export)
 6. [Turning the receiver on](#turning-the-receiver-on)
-7. [The read API](#the-read-api)
-8. [Reading heartbeats from other tools](#reading-heartbeats-from-other-tools)
-9. [With EdgeShell](#with-edgeshell)
-10. [Security](#security)
-11. [Troubleshooting](#troubleshooting)
+7. [Adding a node without EdgeShell](#adding-a-node-without-edgeshell)
+8. [Every SenseHive is its own fleet](#every-sensehive-is-its-own-fleet)
+9. [The read API](#the-read-api)
+10. [Reading heartbeats from other tools](#reading-heartbeats-from-other-tools)
+11. [With EdgeShell](#with-edgeshell)
+12. [Security](#security)
+13. [Troubleshooting](#troubleshooting)
 
 ## How the heartbeat works
 
@@ -173,17 +175,141 @@ Cells that a spreadsheet could run as a formula are escaped (see
 
 ```bash
 # .env next to docker-compose.yml (never commit it)
-HEARTBEAT_MASTER_KEY=<64 hex characters>     # python -c "import secrets; print(secrets.token_hex(32))"
+HEARTBEAT_MASTER_KEY=auto                     # its own fleet key, made once, kept with the data
+#   or your own: HEARTBEAT_MASTER_KEY=<64 hex>   python -c "import secrets; print(secrets.token_hex(32))"
 HEARTBEAT_API_TOKEN=<32+ characters>          # python -c "import secrets; print(secrets.token_urlsafe(32))"
 # optional, these are the defaults
 HEARTBEAT_BROKER=broker.hivemq.com
 HEARTBEAT_PORT=8883
 HEARTBEAT_TLS=true
+# SenseHive's login on the heartbeat broker (your own broker; any value on a public one)
+# HEARTBEAT_BROKER_USERNAME=sensehive
+# HEARTBEAT_BROKER_PASSWORD=<secret>
+# only when nodes reach the same broker by another name (written into join tokens)
+# HEARTBEAT_NODE_BROKER=mqtt.example.com:8883
 ```
 
 Restart SenseHive. The log says `Heartbeat receiver on`, and the **Heartbeats**
 page says `connected to the heartbeat broker`. The MQTT logger keeps working
 exactly as before.
+
+## Adding a node without EdgeShell
+
+Any Linux node (Raspberry Pi OS, Debian, Ubuntu; Python 3.7+) joins in three
+steps. SenseHive never connects to the node: you run one command on it.
+
+![Adding heartbeat nodes without EdgeShell: a token per node, setup.py on one node or the bulk tool for many, and every SenseHive its own fleet](assets/heartbeat-join.svg)
+
+1. **In SenseHive:** **Heartbeats**, **Add node**, type a name for the node,
+   **Create token**. SenseHive shows a one-line **join token** and the commands.
+
+   ![Add a node](../assets/heartbeat-add-node.png)
+
+2. **On the node** (over SSH or at its own screen):
+
+   ```bash
+   git clone https://github.com/855princekumar/mqtt-heartbeat-service
+   cd mqtt-heartbeat-service
+   sudo python3 setup.py           # paste the join token when asked (it is not shown)
+   ```
+
+   `setup.py` checks the token (a cut or changed paste is refused), writes the
+   node's `agent.env` and `config.yaml` (the broker SenseHive listens on), and
+   installs the agent as the systemd service `edgeshell-heartbeat`: its own
+   system user, a read-only system, no capabilities, 64 MB and 10 % CPU at
+   most, started now and at every boot. Without systemd it runs as a background
+   process instead.
+
+3. **Done.** Within seconds the node shows **online** on the Heartbeats page.
+   Nothing to add in SenseHive: it found the node by itself.
+
+On the node afterwards:
+
+| Command | Does |
+| ------- | ---- |
+| `sudo python3 setup.py --status` | Is the agent running, for which node, in which fleet |
+| `sudo python3 setup.py --check TOKEN` | Only checks a token |
+| `sudo python3 setup.py --token-file FILE` | Reads the token from a file (deleted after a good install), for scripted installs |
+| `sudo python3 setup.py --uninstall` | Removes the agent, its files and its user |
+| `cd mqtt-heartbeat-service && git pull && sudo python3 setup.py` | Updates the agent (paste the same token, or a new one) |
+
+What the join token holds: the node's **name**, its **own key** and the
+**topic key**, and the broker host, port and TLS setting. It **never** holds
+the fleet master key. It is still a secret for that one node: paste it, do not
+share it, do not save it in a file or a ticket. Format (for other tools):
+`hbj1.` and base64url of a JSON object `{"v":1,"node","kid","nk","tk","broker","port","tls","c"}`,
+where `c` is the first 8 hex characters of SHA-256 over the same JSON without `c`.
+
+### Many nodes: a CSV of tokens and the bulk tool
+
+**Add node, Many nodes (CSV)**: paste the node names (or a prefix and a range,
+up to 500 at a time), **Create tokens**, **Download CSV** (`node,token`, one row
+and one identity per node, shown only once). Then, on your own computer, the
+agent's bulk tool sets them all up over SSH:
+
+```bash
+git clone https://github.com/855princekumar/mqtt-heartbeat-service && cd mqtt-heartbeat-service
+cp tools/bulk.example.yaml tools/bulk.yaml     # set the broker login (and your SSH key)
+pip install pyyaml
+python tools/bulk_setup.py                     # pick the tokens CSV and a nodes CSV (node,host,user,port)
+```
+
+It installs every node with its own token and the broker login, tests each one
+(service, files, broker reachable with TLS or plain, login accepted), checks
+they show online here, and writes a results CSV. The same tool rolls a new
+broker password out to every node, or only tests them. Details:
+[the agent's setup guide](https://github.com/855princekumar/mqtt-heartbeat-service/blob/main/docs/SETUP.md#d-many-nodes-at-once-bulk-ssh-without-edgeshell).
+
+Why one token per node and not one for all: a single shared token, once copied
+from a script or a ticket, would let anyone add any number of fake nodes. A
+per-node token speaks for one node only; if it leaks, bin that node and give
+it a new token.
+
+### The broker login
+
+Nodes log in to the heartbeat broker with a username and password (the agent's
+`mqtt.env`, private to the agent, checked against the broker before it is
+saved). SenseHive logs in with `HEARTBEAT_BROKER_USERNAME` and
+`HEARTBEAT_BROKER_PASSWORD`. On your own broker, require a login (and give
+nodes an ACL that lets them only publish): then nobody else even receives the
+messages. Nodes use TLS when the broker offers it and plain MQTT only when the
+TLS port cannot be reached; the heartbeats are encrypted either way.
+
+With EdgeShell, **Fleet Setup** does all of this for you over SSH; both ways
+give the node the same kind of identity and can be mixed in one fleet.
+
+## Every SenseHive is its own fleet
+
+Many people and companies can use the same public broker, each with their own
+SenseHive and their own nodes, and **never see each other's nodes**:
+
+- Each SenseHive has its **own fleet master key** (`HEARTBEAT_MASTER_KEY`, or
+  `auto`: a random key made once and kept next to its database, readable by its
+  owner only). The **fleet** shown under **Add node** (12 hex characters, a
+  hash that reveals nothing about the key) names it.
+- A node only gets keys **derived** from one fleet's master key, through that
+  SenseHive's join token (or EdgeShell's Fleet Setup).
+- The topics a fleet uses are derived from its key and change every 10
+  minutes, so a SenseHive is **not even subscribed** to another fleet's
+  topics. A message delivered anyway (a wildcard subscription, someone copying
+  it) does not decrypt with this fleet's keys and is dropped and counted.
+- Two fleets can use the **same node names**: they stay separate nodes.
+- A node key speaks for **one name only**: a token for `pi-1` cannot be edited
+  to send as `pi-2`.
+
+`setup.py --status` on a node and **Add node** in SenseHive show the fleet id:
+when they match, the node belongs to that SenseHive. Tested in CI with two
+SenseHives on one broker: `tests/test_heartbeat_join.py`, and end to end with
+a real systemd install ([Validate without hardware](VALIDATE-WITHOUT-HARDWARE.md)).
+
+**EdgeShell:** EdgeShell gives its SenseHive the master key from its own `.env`,
+so nodes added with SenseHive's **Add node** and with EdgeShell's **Fleet
+Setup** are the same fleet and show up in both.
+
+**Keep the key:** with `auto`, the key is the file `heartbeat_master_key` in
+SenseHive's data folder (Docker volume, Home Assistant backup). If it is lost,
+every node needs a new join token.
+
 
 ## The read API
 
@@ -346,13 +472,18 @@ EdgeShell runs SenseHive in its Compose stack and:
 | Reading the API | Bearer token (32+ characters, compared in constant time) or a signed-in session; GET only; 20 wrong tokens from one address in 15 minutes lock that address out |
 | A stolen node key flooding | Heartbeats closer than `HEARTBEAT_MIN_SPACING` (2 s) are dropped and counted (`flooded` in `/api/heartbeat/status`), so the history and the CPU stay safe |
 | Spreadsheet formulas in exports | Cells starting with `=`, `+`, `-`, `@` are escaped; plain numbers stay numbers |
-| The master key | Only in SenseHive's and EdgeShell's environment, never on a node, never in the repository |
+| The master key | Only in SenseHive's and EdgeShell's environment (or SenseHive's data folder with `auto`), never on a node, never in a join token, never in the repository |
+| Another company's nodes on the same broker | Each SenseHive its own fleet key: other fleets' topics are not subscribed, their messages do not decrypt ([details](#every-sensehive-is-its-own-fleet)) |
+| A join token copied or leaked | It speaks for one node only; bin and delete that node, then give the real node a token under a new name |
+| Creating join tokens | Signed-in SenseHive users only, never the read-only API token |
 
 ## Troubleshooting
 
 | Symptom | Check |
 | ------- | ----- |
-| Page says `receiver off` | `HEARTBEAT_MASTER_KEY` is not set or not 64 hex characters |
+| Page says `receiver off` | `HEARTBEAT_MASTER_KEY` is not set, or not 64 hex characters or `auto` |
+| `setup.py` says the token is cut or changed | Copy it again with **Copy token**; a paste that wraps over lines is fine |
+| A node set up with a token never appears | `sudo python3 setup.py --status` on the node: the fleet must match **Add node**; the broker in the token must be reachable from the node (`HEARTBEAT_NODE_BROKER`) |
 | `not connected to the heartbeat broker` | outbound TCP 8883 from SenseHive; `HEARTBEAT_BROKER` |
 | A node never appears | on the node: `systemctl status edgeshell-heartbeat` and `journalctl -u edgeshell-heartbeat`; its clock (NTP); it was provisioned with the same master key |
 | `rejected` keeps growing | someone else's traffic (normal on a public broker), or a node with a wrong key or a wrong clock |

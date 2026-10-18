@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 470" font-family="Segoe UI,Roboto,Helvetica,Arial,sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">PowerPulse on a simulated ESP32: measured</title>
+  <desc id="desc">Measured by CI on 2026-10-18 with the real PowerPulse firmware in Wokwi against SenseHive over broker.hivemq.com. Auto-discovery build: found by SenseHive and shown online at 15.1 seconds, six of six sealed beacons of 526 bytes stored, zero refused, shown offline 16.6 seconds after the power cut. Manual build: online at 9.1 seconds from its retained status, first beacon at 15.1 seconds, six of six beacons of 284 bytes, offline 17.1 seconds after the cut.</desc>
+  <defs>
+    <style>
+      .tt{font-size:18px;font-weight:700;fill:#0f172a}
+      .t{font-size:12.5px;font-weight:700;fill:#0f172a}
+      .lbl{font-size:11px;fill:#475569}
+      .mut{font-size:11px;fill:#64748b}
+      .hd{font-size:13px;font-weight:700;fill:#fff}
+      .hs{font-size:10.5px;fill:#e2e8f0}
+      .big{font-size:26px;font-weight:700}
+      .unit{font-size:12px;fill:#64748b}
+      .tick{font-size:10px;fill:#64748b}
+      .ev{font-size:10.5px;font-weight:700}
+    </style>
+  </defs>
+  <rect width="1000" height="470" fill="#f8fafc"/>
+  <text x="30" y="36" class="tt">PowerPulse on a simulated ESP32: measured</text>
+  <text x="30" y="56" class="mut">CI, 2026-10-18: GitHub-hosted runner, Wokwi cloud simulator, broker.hivemq.com. Seconds from the start of the simulation (boot, Wi-Fi, NTP and the broker included).</text>
+
+  <!-- timeline -->
+  <rect x="30" y="74" width="940" height="130" rx="12" fill="#fff" stroke="#cbd5e1"/>
+  <text x="46" y="96" class="t">Auto-discovery build, one run</text>
+  <!-- axis: 0..90 s over x 60..940 -->
+  <line x1="60" y1="150" x2="940" y2="150" stroke="#cbd5e1" stroke-width="2"/>
+  <rect x="60" y="143" width="147" height="14" rx="3" fill="#e0e7ff"/>
+  <text x="133" y="140" class="ev" text-anchor="middle" style="fill:#4338ca">boot, Wi-Fi, NTP, broker</text>
+  <rect x="207" y="143" width="537" height="14" rx="3" fill="#dcfce7"/>
+  <text x="476" y="140" class="ev" text-anchor="middle" style="fill:#047857">online: a sealed beacon every 10 s (6 of 6 stored)</text>
+  <rect x="744" y="143" width="162" height="14" rx="3" fill="#fee2e2"/>
+  <text x="825" y="140" class="ev" text-anchor="middle" style="fill:#b91c1c">silent, keepalive runs out</text>
+  <g fill="#047857"><circle cx="207" cy="150" r="5"/><circle cx="305" cy="150" r="3"/><circle cx="403" cy="150" r="3"/><circle cx="500" cy="150" r="3"/><circle cx="598" cy="150" r="3"/><circle cx="696" cy="150" r="3"/></g>
+  <line x1="744" y1="120" x2="744" y2="176" stroke="#0f172a" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="744" y="190" class="ev" text-anchor="middle" style="fill:#0f172a">power cut, 70 s</text>
+  <circle cx="906" cy="150" r="6" fill="#dc2626"/>
+  <text x="906" y="190" class="ev" text-anchor="middle" style="fill:#b91c1c">offline, +16.6 s</text>
+  <text x="207" y="190" class="ev" text-anchor="middle" style="fill:#047857">found and online, 15.1 s</text>
+  <g class="tick"><text x="60" y="170" text-anchor="middle">0</text><text x="353" y="170" text-anchor="middle">30</text><text x="646" y="170" text-anchor="middle">60</text><text x="940" y="170" text-anchor="middle">90 s</text></g>
+
+  <!-- auto card -->
+  <rect x="30" y="220" width="460" height="230" rx="12" fill="#fff" stroke="#7c3aed" stroke-width="1.5"/>
+  <path d="M42,220 H478 A12,12 0 0 1 490,232 V258 H30 V232 A12,12 0 0 1 42,220 Z" fill="#7c3aed"/>
+  <text x="44" y="244" class="hd">Auto-discovery build (secure topics)</text>
+  <text x="46" y="296" class="big" style="fill:#047857">15.1<tspan class="unit"> s</tspan></text><text x="46" y="314" class="lbl">found by SenseHive by itself</text>
+  <text x="196" y="296" class="big" style="fill:#047857">15.1<tspan class="unit"> s</tspan></text><text x="196" y="314" class="lbl">shown online</text>
+  <text x="346" y="296" class="big" style="fill:#b91c1c">16.6<tspan class="unit"> s</tspan></text><text x="346" y="314" class="lbl">offline after the power cut</text>
+  <text x="46" y="364" class="big" style="fill:#0f172a">6/6</text><text x="46" y="382" class="lbl">beacons stored, decrypted</text>
+  <text x="196" y="364" class="big" style="fill:#0f172a">526<tspan class="unit"> B</tspan></text><text x="196" y="382" class="lbl">sealed (330 B of JSON inside)</text>
+  <text x="346" y="364" class="big" style="fill:#0f172a">0</text><text x="346" y="382" class="lbl">messages refused</text>
+  <text x="46" y="428" class="mut">Firmware 1,059,568 bytes, built in 56 s. The broker sees only the sealed envelope.</text>
+
+  <!-- manual card -->
+  <rect x="510" y="220" width="460" height="230" rx="12" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+  <path d="M522,220 H958 A12,12 0 0 1 970,232 V258 H510 V232 A12,12 0 0 1 522,220 Z" fill="#0ea5e9"/>
+  <text x="524" y="244" class="hd">Manual build (open topic, added by hand first)</text>
+  <text x="526" y="296" class="big" style="fill:#047857">9.1<tspan class="unit"> s</tspan></text><text x="526" y="314" class="lbl">shown online (retained status)</text>
+  <text x="676" y="296" class="big" style="fill:#047857">15.1<tspan class="unit"> s</tspan></text><text x="676" y="314" class="lbl">first beacon stored</text>
+  <text x="826" y="296" class="big" style="fill:#b91c1c">17.1<tspan class="unit"> s</tspan></text><text x="826" y="314" class="lbl">offline after the power cut</text>
+  <text x="526" y="364" class="big" style="fill:#0f172a">6/6</text><text x="526" y="382" class="lbl">beacons stored</text>
+  <text x="676" y="364" class="big" style="fill:#0f172a">284<tspan class="unit"> B</tspan></text><text x="676" y="382" class="lbl">plain JSON on the broker</text>
+  <text x="826" y="364" class="big" style="fill:#0f172a">48<tspan class="unit"> s</tspan></text><text x="826" y="382" class="lbl">build time</text>
+  <text x="526" y="428" class="mut">Firmware 1,056,144 bytes. Not found by itself: plain topics are never discovered.</text>
+</svg>

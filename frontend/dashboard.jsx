@@ -288,7 +288,7 @@
                         setStats(await res.json());
                     }
                 } catch (e) {
-                    console.error('Failed to fetch stats:', e);
+                    console.warn('Not loaded (network): stats', e);
                 }
             };
 
@@ -350,7 +350,7 @@
                     setNodes(data);
                     fetchStats();
                 } catch (e) {
-                    console.error('Failed to fetch nodes:', e);
+                    console.warn('Not loaded (network): nodes', e);
                 }
             };
 
@@ -366,7 +366,7 @@
                         setBrokerConfig(data);
                     }
                 } catch (e) {
-                    console.error('Failed to fetch broker config:', e);
+                    console.warn('Not loaded (network): broker config', e);
                 }
             };
 
@@ -380,7 +380,7 @@
                     const data = await res.json();
                     setTimezones(data.timezones || []);
                 } catch (e) {
-                    console.error('Failed to fetch timezones:', e);
+                    console.warn('Timezones not loaded (network):', e);
                 }
             };
 
@@ -391,7 +391,7 @@
                         setRetention(await res.json());
                     }
                 } catch (e) {
-                    console.error('Failed to fetch retention settings:', e);
+                    console.warn('Not loaded (network): retention settings', e);
                 }
             };
 
@@ -610,7 +610,7 @@
                     const data = await res.json();
                     setShowDetails(data);
                 } catch (e) {
-                    console.error('Failed to fetch history:', e);
+                    console.warn('Not loaded (network): history', e);
                 }
             };
 

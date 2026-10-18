@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="SenseHive Banner"/>
 </p>
 
-![Release](https://img.shields.io/badge/release-v1.7.0-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-28%20MB%20idle%20%7C%2035%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
+![Release](https://img.shields.io/badge/release-v1.8.0-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![PowerPulse](https://img.shields.io/badge/ESP32%20device-PowerPulse-0ea5e9.svg?logo=espressif&logoColor=white)](https://github.com/855princekumar/powerpulse) [![Devices](https://github.com/855princekumar/sense-hive/actions/workflows/devices.yml/badge.svg)](docs/VALIDATE-WITHOUT-HARDWARE.md) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-28%20MB%20idle%20%7C%2035%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
 
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
@@ -29,9 +29,11 @@
 ## Index
 
 - [Documentation](#documentation)
+- [The SenseHive Family](#the-sensehive-family)
 - [Quick Start (30 seconds)](#quick-start-30-seconds)
 - [Dashboard Preview](#dashboard-preview)
 - [Minimum System Requirements](#minimum-system-requirements)
+- [What's New in v1.8](#whats-new-in-v18)
 - [What's New in v1.7](#whats-new-in-v17)
 - [What's New in v1.6](#whats-new-in-v16)
 - [What's New in v1.5](#whats-new-in-v15)
@@ -77,10 +79,38 @@ Full guides live in [`docs/`](docs/README.md):
 [Using SenseHive](docs/USING.md) |
 [Secure topics](docs/SECURE-TOPICS.md) |
 [Heartbeats and EdgeShell](docs/HEARTBEAT.md) |
+[Validate without hardware](docs/VALIDATE-WITHOUT-HARDWARE.md) |
 [Security](docs/SECURITY.md) |
 [Development and testing](docs/DEVELOPMENT.md) |
 [Architecture decisions](docs/adr/README.md) |
 [Changelog](CHANGELOG.md)
+
+---
+
+## The SenseHive Family
+
+SenseHive is the hub. Two device projects feed it, each found by SenseHive
+by itself, with nothing to add per device:
+
+| Project | Runs on | What it gives SenseHive |
+| ------- | ------- | ----------------------- |
+| [**MQTT heartbeat agent**](https://github.com/855princekumar/mqtt-heartbeat-service) | Linux edge nodes: Raspberry Pi, gateways, servers | Encrypted heartbeats every 10 s and a last will: each node **online, offline or silent**, with uptime history. **Add node** in SenseHive gives a join token; on the node `git clone` the agent and `sudo python3 setup.py` ([Heartbeats](docs/HEARTBEAT.md#adding-a-node-without-edgeshell)) |
+| [**PowerPulse**](https://github.com/855princekumar/powerpulse) | ESP32 boards | A power presence beacon: flash it, plug it in, and it appears under **Secure topics** with its data, **online**, and **offline the moment power is lost** (or a plain build added by hand) ([Secure topics](docs/SECURE-TOPICS.md)) |
+| [EdgeShell](https://github.com/855princekumar/edgeshell) | Your server | Fleet manager that shows SenseHive's heartbeat state on its node cards |
+| [Home Assistant add-on](https://github.com/855princekumar/sensehive-ha-addon) | Home Assistant OS | SenseHive in the Home Assistant sidebar |
+
+Every SenseHive change is tested against both device projects, **without
+hardware**: the real PowerPulse firmware runs on a simulated ESP32 and must be
+found, decrypted, shown online and then offline. How it works, the measured
+numbers, and how to run the same checks yourself before you deploy hardware:
+[Validate without hardware](docs/VALIDATE-WITHOUT-HARDWARE.md).
+
+<p align="center">
+  <img src="docs/assets/validate-without-hardware.svg" width="100%" alt="Validate without hardware: PowerPulse firmware on a simulated ESP32, the public broker, SenseHive, six test layers" />
+</p>
+<p align="center">
+  <img src="docs/assets/wokwi-results.svg" width="100%" alt="PowerPulse on a simulated ESP32, measured: online at 15.1 s, offline 16.6 s after the power cut" />
+</p>
 
 ---
 
@@ -248,6 +278,24 @@ itself and serves their state through a read-only API.
 | Browser | A current Chrome, Edge, Firefox or Safari, desktop or phone | |
 
 Measured, not estimated: see [Performance](docs/PERFORMANCE.md).
+
+---
+
+## What's New in v1.8
+
+| Area | Change |
+| ---- | ------ |
+| Many nodes | **Add node, Many nodes (CSV)**: up to 500 tokens at a time; the agent's bulk tool sets them all up over SSH with the broker login, tests each node and rolls new passwords out ([guide](docs/HEARTBEAT.md#many-nodes-a-csv-of-tokens-and-the-bulk-tool)) |
+| Add node | **Heartbeats, Add node**: a join token for a new node. On the node: `git clone` the [heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service), `sudo python3 setup.py`, paste the token. A hardened systemd service, and the node appears by itself. No EdgeShell, and SenseHive never connects to the node ([guide](docs/HEARTBEAT.md#adding-a-node-without-edgeshell)) |
+| Isolation | `HEARTBEAT_MASTER_KEY=auto`: every SenseHive its own fleet. Other people's nodes on the same public broker never appear, and yours never appear in theirs ([how](docs/HEARTBEAT.md#every-sensehive-is-its-own-fleet)) |
+| Without hardware | The real PowerPulse firmware on a simulated ESP32 and the agent on a systemd node, tested on every change, with the measured numbers ([Validate without hardware](docs/VALIDATE-WITHOUT-HARDWARE.md)) |
+
+<p align="center">
+  <img src="docs/assets/heartbeat-join.svg" width="100%" alt="Adding heartbeat nodes without EdgeShell, and every SenseHive its own fleet" />
+</p>
+<p align="center">
+  <img src="assets/heartbeat-add-node.png" width="60%" alt="Add a heartbeat node with a join token" />
+</p>
 
 ---
 
@@ -558,7 +606,7 @@ docker pull devprincekumar/sense-hive:latest
 ```
 
 * One multi-arch image for AMD64 / x86 and ARM64 (Raspberry Pi 4/5); Docker picks the right one
-* Pin a release with `devprincekumar/sense-hive:1.7.0`; `edge` tracks the `main` branch
+* Pin a release with `devprincekumar/sense-hive:1.8.0`; `edge` tracks the `main` branch
 * `arm-pi-5` remains available and points to the same multi-arch release
 
 ---

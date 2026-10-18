@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.8.0 (2026-10-18)
+
+**Add a heartbeat node without EdgeShell**
+- **Heartbeats, Add node:** a name, then a one-line join token. On the node:
+  `git clone` the [heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service),
+  `sudo python3 setup.py`, paste the token. The agent is installed as a
+  hardened systemd service and the node appears by itself. SenseHive never
+  connects to the node.
+- The token holds only that node's keys and the broker, never the fleet master
+  key, with a checksum that refuses a cut or changed paste.
+- `HEARTBEAT_MASTER_KEY=auto`: a random fleet key made once and kept next to
+  the database (owner only), so every SenseHive is its own fleet.
+- `HEARTBEAT_NODE_BROKER`: the broker address written into tokens when nodes
+  reach it by another name than SenseHive does.
+- The fleet id (a hash, 12 hex) shows in SenseHive and on the node
+  (`setup.py --status`), so anyone can check a node belongs to this SenseHive.
+- **Many nodes:** **Add node, Many nodes (CSV)**: names or a prefix and a
+  range, up to 500 tokens at a time, one per node, as a CSV for the agent's
+  bulk SSH tool (`tools/bulk_setup.py`, agent 1.2.0).
+- `HEARTBEAT_BROKER_USERNAME` / `HEARTBEAT_BROKER_PASSWORD`: SenseHive's login
+  on the heartbeat broker (nodes have theirs since agent 1.2.0).
+
+**Isolation, tested**
+- Two SenseHives on one broker never see each other's nodes: different topics,
+  no decryption, the same node names kept apart, a token cannot be edited to
+  speak for another node.
+
+**Validate without hardware**
+- New guide [Validate without hardware](docs/VALIDATE-WITHOUT-HARDWARE.md) with
+  the numbers measured in the simulations.
+- New **Devices** workflow: on every pull request, the PowerPulse firmware's
+  messages end to end and the heartbeat agent installed from a join token on a
+  systemd node beside a second SenseHive; on `main` and weekly, the real
+  PowerPulse firmware on a simulated ESP32 (Wokwi).
+- README: **The SenseHive Family**, the heartbeat agent and PowerPulse.
+
 ## 1.7.0 (2026-10-18)
 
 **Secure topics** ([guide](docs/SECURE-TOPICS.md), ADR 0009)

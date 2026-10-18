@@ -64,6 +64,12 @@ def main():
         page.wait_for_selector('#hbBinDialog')
         shot(page, 'heartbeat-bin.png')
         page.locator('#hbBinDialog button', has_text='Close').click()
+        page.click('#hbAddNode')                         # add a node without EdgeShell (1.8)
+        page.fill('#hbJoinName', 'pi-node-01')
+        page.click('#hbJoinGo')
+        page.wait_for_selector('#hbJoinToken')
+        shot(page, 'heartbeat-add-node.png')            # a throwaway key of the seeded test install
+        page.keyboard.press('Escape')
         page.click('#viewTopics')
         page.wait_for_selector('.sh-card')
         page.click('#kindSecure')                        # secure topics (1.7): found by themselves

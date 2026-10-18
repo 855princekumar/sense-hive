@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" font-family="Segoe UI,Roboto,Helvetica,Arial,sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">Validate without hardware</title>
+  <desc id="desc">The real PowerPulse firmware is built with arduino-cli and runs on a simulated ESP32 in Wokwi's cloud with Wi-Fi and internet. It publishes sealed beacons to the public MQTT broker. SenseHive, started from source, finds the node by itself under secure topics, decrypts it, shows it online and, when the simulation stops, offline through the broker's last will. Six test layers run in CI: SenseHive's own tests, firmware builds, the firmware encryption byte for byte, a simulated node end to end, the heartbeat agent from a join token on a systemd node, and the real firmware in Wokwi.</desc>
+  <defs>
+    <marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker>
+    <style>
+      .tt{font-size:18px;font-weight:700;fill:#0f172a}
+      .t{font-size:12.5px;font-weight:700;fill:#0f172a}
+      .lbl{font-size:11px;fill:#475569}
+      .mut{font-size:11px;fill:#64748b}
+      .hd{font-size:13px;font-weight:700;fill:#fff}
+      .hs{font-size:10.5px;fill:#e2e8f0}
+      .mono{font-size:10px;fill:#0f172a;font-family:Consolas,Menlo,monospace}
+      .big{font-size:20px;font-weight:700}
+      .pill{font-size:10.5px;font-weight:700;fill:#fff}
+    </style>
+  </defs>
+  <rect width="1000" height="600" fill="#f8fafc"/>
+  <text x="30" y="36" class="tt">Validate without hardware</text>
+  <text x="30" y="56" class="mut">The real PowerPulse firmware on a simulated ESP32, against a real SenseHive, over the public broker. Every step checked from the outside.</text>
+
+  <!-- 1 firmware -->
+  <rect x="30" y="80" width="170" height="210" rx="12" fill="#fff" stroke="#0ea5e9" stroke-width="1.5"/>
+  <path d="M42,80 H188 A12,12 0 0 1 200,92 V120 H30 V92 A12,12 0 0 1 42,80 Z" fill="#0ea5e9"/>
+  <text x="44" y="99" class="hd">1  Firmware</text>
+  <text x="44" y="113" class="hs">PowerPulse v2.0</text>
+  <text x="44" y="142" class="t">arduino-cli build</text>
+  <text x="44" y="160" class="lbl">ESP32 core 3.3.12</text>
+  <text x="44" y="176" class="lbl">auto build: a key from</text>
+  <text x="44" y="192" class="lbl">this SenseHive in config.h</text>
+  <text x="44" y="208" class="lbl">manual build: plain topics</text>
+  <text x="44" y="236" class="t">1.06 MB</text>
+  <text x="44" y="252" class="lbl">80 % of the app partition</text>
+  <text x="44" y="276" class="mono">sensehive_secure.h</text>
+
+  <line x1="200" y1="185" x2="226" y2="185" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- 2 Wokwi -->
+  <rect x="230" y="80" width="190" height="210" rx="12" fill="#fff" stroke="#7c3aed" stroke-width="1.5"/>
+  <path d="M242,80 H408 A12,12 0 0 1 420,92 V120 H230 V92 A12,12 0 0 1 242,80 Z" fill="#7c3aed"/>
+  <text x="244" y="99" class="hd">2  Simulated ESP32</text>
+  <text x="244" y="113" class="hs">Wokwi cloud, ESP32 DevKit C v4</text>
+  <rect x="250" y="134" width="70" height="44" rx="5" fill="#1e293b"/>
+  <rect x="257" y="141" width="56" height="30" rx="2" fill="#475569"/>
+  <text x="285" y="160" class="pill" text-anchor="middle">ESP32</text>
+  <g stroke="#94a3b8" stroke-width="2"><line x1="254" y1="178" x2="254" y2="186"/><line x1="264" y1="178" x2="264" y2="186"/><line x1="274" y1="178" x2="274" y2="186"/><line x1="284" y1="178" x2="284" y2="186"/><line x1="294" y1="178" x2="294" y2="186"/><line x1="304" y1="178" x2="304" y2="186"/><line x1="314" y1="178" x2="314" y2="186"/></g>
+  <text x="332" y="146" class="lbl">boots the</text>
+  <text x="332" y="160" class="lbl">real binary</text>
+  <text x="332" y="174" class="lbl">serial log kept</text>
+  <text x="244" y="210" class="lbl">joins Wi-Fi "Wokwi-GUEST"</text>
+  <text x="244" y="226" class="lbl">gets the time (NTP)</text>
+  <text x="244" y="242" class="lbl">connects, leaves a last will</text>
+  <text x="244" y="258" class="lbl">seals a beacon every 10 s</text>
+  <text x="244" y="276" class="lbl">70 simulated seconds, then cut</text>
+
+  <line x1="420" y1="185" x2="446" y2="185" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- 3 broker -->
+  <rect x="450" y="80" width="150" height="210" rx="12" fill="#fff" stroke="#64748b" stroke-width="1.5"/>
+  <path d="M462,80 H588 A12,12 0 0 1 600,92 V120 H450 V92 A12,12 0 0 1 462,80 Z" fill="#64748b"/>
+  <text x="464" y="99" class="hd">3  Public broker</text>
+  <text x="464" y="113" class="hs">broker.hivemq.com</text>
+  <text x="464" y="142" class="t">sees only</text>
+  <text x="464" y="160" class="lbl">a sealed envelope</text>
+  <text x="464" y="176" class="lbl">(526 bytes) on</text>
+  <text x="464" y="192" class="mono">sensehive/secure/...</text>
+  <text x="464" y="220" class="t">holds the will</text>
+  <text x="464" y="238" class="lbl">publishes OFF when the</text>
+  <text x="464" y="254" class="lbl">ESP32 goes silent</text>
+  <text x="464" y="276" class="lbl">(a power cut)</text>
+
+  <line x1="600" y1="185" x2="626" y2="185" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- 4 SenseHive -->
+  <rect x="630" y="80" width="170" height="210" rx="12" fill="#fff" stroke="#1a56db" stroke-width="1.5"/>
+  <path d="M642,80 H788 A12,12 0 0 1 800,92 V120 H630 V92 A12,12 0 0 1 642,80 Z" fill="#1a56db"/>
+  <text x="644" y="99" class="hd">4  SenseHive</text>
+  <text x="644" y="113" class="hs">started from source by the test</text>
+  <text x="644" y="142" class="t">checks</text>
+  <text x="644" y="160" class="lbl">key id, topic, time,</text>
+  <text x="644" y="176" class="lbl">signature, replay</text>
+  <text x="644" y="200" class="t">then</text>
+  <text x="644" y="218" class="lbl">decrypts, adds the topic</text>
+  <text x="644" y="234" class="lbl">by itself, follows its</text>
+  <text x="644" y="250" class="lbl">status topic</text>
+  <text x="644" y="276" class="lbl">0 messages refused</text>
+
+  <line x1="800" y1="185" x2="826" y2="185" stroke="#334155" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- 5 dashboard -->
+  <rect x="830" y="80" width="140" height="210" rx="12" fill="#fff" stroke="#059669" stroke-width="1.5"/>
+  <path d="M842,80 H958 A12,12 0 0 1 970,92 V120 H830 V92 A12,12 0 0 1 842,80 Z" fill="#059669"/>
+  <text x="844" y="99" class="hd">5  Seen by you</text>
+  <text x="844" y="113" class="hs">Secure topics card</text>
+  <rect x="844" y="134" width="112" height="44" rx="8" fill="#ecfdf5" stroke="#059669"/>
+  <circle cx="858" cy="156" r="5" fill="#059669"/>
+  <text x="868" y="152" class="t" style="fill:#047857">Active</text>
+  <text x="868" y="167" class="mut">at 15.1 s</text>
+  <rect x="844" y="190" width="112" height="44" rx="8" fill="#fef2f2" stroke="#dc2626"/>
+  <circle cx="858" cy="212" r="5" fill="#dc2626"/>
+  <text x="868" y="208" class="t" style="fill:#b91c1c">Inactive</text>
+  <text x="868" y="223" class="mut">16.6 s after cut</text>
+  <text x="844" y="256" class="lbl">6 of 6 beacons</text>
+  <text x="844" y="272" class="lbl">stored, decrypted</text>
+
+  <!-- layers -->
+  <text x="30" y="330" class="t" font-size="14">Six test layers, each needs less than the one below it</text>
+  <g>
+    <rect x="30" y="344" width="940" height="36" rx="8" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="30" y="344" width="8" height="36" rx="4" fill="#1a56db"/>
+    <text x="50" y="367" class="t">SenseHive tests</text>
+    <text x="250" y="367" class="lbl">protocol tampering, keys, API, isolation of secure and open topics, every device code example</text>
+    <rect x="860" y="352" width="100" height="20" rx="10" fill="#1a56db"/><text x="910" y="366" class="pill" text-anchor="middle">every change</text>
+
+    <rect x="30" y="386" width="940" height="36" rx="8" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="30" y="386" width="8" height="36" rx="4" fill="#0ea5e9"/>
+    <text x="50" y="409" class="t">Firmware builds</text>
+    <text x="250" y="409" class="lbl">both PowerPulse builds compile for the ESP32, as shipped and with every setting filled in</text>
+    <rect x="860" y="394" width="100" height="20" rx="10" fill="#0ea5e9"/><text x="910" y="408" class="pill" text-anchor="middle">every change</text>
+
+    <rect x="30" y="428" width="940" height="36" rx="8" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="30" y="428" width="8" height="36" rx="4" fill="#0ea5e9"/>
+    <text x="50" y="451" class="t">Firmware encryption</text>
+    <text x="250" y="451" class="lbl">the firmware's own C code, built on a PC, gives byte for byte what SenseHive gives, and SenseHive opens it</text>
+    <rect x="860" y="436" width="100" height="20" rx="10" fill="#0ea5e9"/><text x="910" y="450" class="pill" text-anchor="middle">every change</text>
+
+    <rect x="30" y="470" width="940" height="36" rx="8" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="30" y="470" width="8" height="36" rx="4" fill="#059669"/>
+    <text x="50" y="493" class="t">Simulated node, end to end</text>
+    <text x="250" y="493" class="lbl">found by itself, online, offline on a cut; manual ignored until added; forged and copied keys refused</text>
+    <rect x="860" y="478" width="100" height="20" rx="10" fill="#059669"/><text x="910" y="492" class="pill" text-anchor="middle">every change</text>
+
+    <rect x="30" y="512" width="940" height="36" rx="8" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="30" y="512" width="8" height="36" rx="4" fill="#d97706"/>
+    <text x="50" y="535" class="t">Heartbeat agent, join token</text>
+    <text x="250" y="535" class="lbl">setup.py installs a real systemd service; online by itself; a second SenseHive on the same broker never sees it</text>
+    <rect x="860" y="520" width="100" height="20" rx="10" fill="#d97706"/><text x="910" y="534" class="pill" text-anchor="middle">every change</text>
+
+    <rect x="30" y="554" width="940" height="36" rx="8" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="30" y="554" width="8" height="36" rx="4" fill="#7c3aed"/>
+    <text x="50" y="577" class="t">Real firmware in Wokwi</text>
+    <text x="250" y="577" class="lbl">steps 1 to 5 above, both builds, over the internet; the numbers on every run's summary page</text>
+    <rect x="860" y="562" width="100" height="20" rx="10" fill="#7c3aed"/><text x="910" y="576" class="pill" text-anchor="middle">main, weekly</text>
+  </g>
+</svg>
