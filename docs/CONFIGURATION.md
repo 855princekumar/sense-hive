@@ -72,7 +72,7 @@ Off unless `HEARTBEAT_MASTER_KEY` is set. See [Heartbeats](HEARTBEAT.md).
 
 | Variable | Default | Purpose |
 | -------- | ------- | ------- |
-| `HEARTBEAT_MASTER_KEY` | empty (off) | Fleet master key, 64 hex characters (secret) |
+| `HEARTBEAT_MASTER_KEY` | empty (off) | Fleet master key, 64 hex characters (secret), or `auto`: a random key made once and kept next to the database (`heartbeat_master_key`, owner only) |
 | `HEARTBEAT_API_TOKEN` | empty | Bearer token for the read-only API, 32+ characters (secret) |
 | `HEARTBEAT_BROKER` / `HEARTBEAT_PORT` / `HEARTBEAT_TLS` | `broker.hivemq.com` / `8883` / `true` | Heartbeat broker (TLS, certificate verified) |
 | `HEARTBEAT_STALE_SECONDS` | `35` | No heartbeat for this long: `silent` |
@@ -80,6 +80,8 @@ Off unless `HEARTBEAT_MASTER_KEY` is set. See [Heartbeats](HEARTBEAT.md).
 | `HEARTBEAT_BEATS_HOURS` | `48` | How long every single heartbeat is kept (charts up to 1 day, CSV); `0` keeps none. About 0.35 MB per node per day (0.7 MB for 48 hours, measured) |
 | `HEARTBEAT_MIN_SPACING` | `2` | Seconds a node must leave between heartbeats; faster ones are dropped as a flood |
 | `HEARTBEAT_BIN_DAYS` | `30` | Days a node stays in the recycle bin before it is deleted for good |
+| `HEARTBEAT_BROKER_USERNAME` / `HEARTBEAT_BROKER_PASSWORD` | empty | SenseHive's login on the heartbeat broker (secret). Nodes set theirs with the agent's `setup.py` or bulk tool |
+| `HEARTBEAT_NODE_BROKER` | empty | `host[:port]` nodes use for the heartbeat broker, written into join tokens, when it differs from `HEARTBEAT_BROKER` (e.g. SenseHive reaches it by a Docker name) |
 
 Generate the secrets with:
 

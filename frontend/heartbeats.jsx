@@ -302,6 +302,161 @@
         );
     }
 
+    // Add a node without EdgeShell: a join token for the agent's setup.py on the node
+    function Join({ darkMode, cardBg, borderClass, onClose }) {
+        const [info, setInfo] = useState(null);
+        const [name, setName] = useState('');
+        const [made, setMade] = useState(null);
+        const [many, setMany] = useState(false);                    // one node or many (a CSV)
+        const [names, setNames] = useState('');
+        const [prefix, setPrefix] = useState('pi-node-');
+        const [range, setRange] = useState({ from: 1, to: 10 });
+        const [bulk, setBulk] = useState(null);
+        const [error, setError] = useState('');
+        const [note, setNote] = useState('');
+        useEffect(() => { fetch('api/heartbeat/join').then((r) => r.json()).then(setInfo).catch(() => setError('Could not reach SenseHive')); }, []);
+        useEffect(() => {
+            const k = (e) => { if (e.key === 'Escape') onClose(); };
+            document.addEventListener('keydown', k);
+            return () => document.removeEventListener('keydown', k);
+        }, [onClose]);
+        const create = () => {
+            setError(''); setNote('');
+            if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/.test(name.trim())) {
+                setError('A node name is 1 to 63 letters, digits, dots, dashes or underscores, starting with a letter or digit.');
+                return;
+            }
+            fetch('api/heartbeat/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ node: name.trim() }) })
+                .then((r) => r.json().then((d) => { if (!r.ok) throw new Error(d.error || 'Failed'); setMade(d); }))
+                .catch((e) => setError(e.message));
+        };
+        const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$/;
+        const list = names.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
+        const fill = () => {
+            const from = Math.max(0, parseInt(range.from, 10) || 0), to = Math.min(from + 499, parseInt(range.to, 10) || 0);
+            const width = String(to).length < 2 ? 2 : String(to).length;
+            const out = [];
+            for (let i = from; i <= to; i++) out.push(prefix + String(i).padStart(width, '0'));
+            setNames(out.join('\n'));
+        };
+        const createMany = () => {
+            setError(''); setNote('');
+            const bad = list.filter((x) => !NAME.test(x));
+            if (!list.length || list.length > 500) { setError('Give 1 to 500 node names.'); return; }
+            if (bad.length) { setError('Not valid names: ' + bad.slice(0, 5).join(', ')); return; }
+            if (new Set(list).size !== list.length) { setError('A node name is listed twice.'); return; }
+            fetch('api/heartbeat/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nodes: list }) })
+                .then((r) => r.json().then((d) => { if (!r.ok) throw new Error(d.error || 'Failed'); setBulk(d); }))
+                .catch((e) => setError(e.message));
+        };
+        const saveCsv = () => {
+            const body = 'node,token\n' + bulk.tokens.map((t) => t.node + ',' + t.token).join('\n') + '\n';
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([body], { type: 'text/csv' }));
+            a.download = 'heartbeat-tokens-' + bulk.fleet + '.csv';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            setNote('CSV saved');
+        };
+        const copy = (text, what) => {
+            const done = (ok) => setNote(ok ? what + ' copied' : 'Copy failed: select it and copy');
+            if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(() => done(true), () => done(false));
+            else done(false);
+        };
+        const cmds = 'git clone https://github.com/855princekumar/mqtt-heartbeat-service\ncd mqtt-heartbeat-service\nsudo python3 setup.py';
+        const btn = `px-3 py-2 rounded-lg text-sm font-medium border ${borderClass} ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} disabled:opacity-50 transition-colors`;
+        const pri = 'px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50';
+        const field = `w-full px-3 py-2 rounded-lg border ${borderClass} ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`;
+        const code = `block font-mono text-xs break-all whitespace-pre-wrap rounded-lg p-3 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`;
+        return ReactDOM.createPortal(
+            <div className="sh-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4" onClick={onClose}>
+                <div id="hbJoinDialog" className={`sh-modal ${cardBg} rounded-xl max-w-2xl w-full min-w-0`} role="dialog" aria-modal="true" aria-label="Add a node"
+                    onClick={(e) => e.stopPropagation()}>
+                    <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex-shrink-0">
+                        <h2 className="text-xl font-bold">Add a node</h2>
+                        <p className="text-sm text-gray-500 mt-1">On any Linux node (Raspberry Pi, gateway, server), no EdgeShell needed. The node then appears here by itself.</p>
+                    </div>
+                    <div className="sh-modal-body px-5 sm:px-6 pb-3 text-sm space-y-3">
+                        {info && !info.enabled && (
+                            <p id="hbJoinOff" className="text-amber-700">The heartbeat receiver is off. Set <code className="font-mono">HEARTBEAT_MASTER_KEY=auto</code> (a
+                                private fleet key for this SenseHive, kept with its data) or your fleet key, and restart SenseHive.</p>
+                        )}
+                        {info && info.enabled && !made && !bulk && (
+                            <div className="flex gap-2" role="tablist">
+                                <button id="hbJoinOne" type="button" role="tab" aria-selected={!many} onClick={() => { setMany(false); setError(''); }}
+                                    className={`px-3 py-1.5 rounded-lg font-medium border ${borderClass} ${!many ? 'bg-blue-600 text-white border-blue-600' : ''}`}>One node</button>
+                                <button id="hbJoinMany" type="button" role="tab" aria-selected={many} onClick={() => { setMany(true); setError(''); }}
+                                    className={`px-3 py-1.5 rounded-lg font-medium border ${borderClass} ${many ? 'bg-blue-600 text-white border-blue-600' : ''}`}>Many nodes (CSV)</button>
+                            </div>
+                        )}
+                        {info && info.enabled && many && !bulk && (<>
+                            <label className="block">
+                                <span className="font-medium">Node names</span>
+                                <textarea id="hbJoinNames" rows={6} className={field + ' mt-1 font-mono text-xs'} value={names} placeholder={'pi-node-01\npi-node-02\ngateway-01'}
+                                    onChange={(e) => setNames(e.target.value)} />
+                                <span className="text-xs text-gray-500">One per line (or commas), up to 500. {list.length} listed.</span>
+                            </label>
+                            <div className="flex flex-wrap items-end gap-2 text-xs">
+                                <label>Prefix <input id="hbJoinPrefix" className={field + ' w-32'} value={prefix} onChange={(e) => setPrefix(e.target.value)} /></label>
+                                <label>From <input type="number" min="0" className={field + ' w-20'} value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} /></label>
+                                <label>To <input id="hbJoinTo" type="number" min="0" className={field + ' w-20'} value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} /></label>
+                                <button id="hbJoinFill" type="button" className={btn} onClick={fill}>Fill the list</button>
+                            </div>
+                            <p className="text-xs text-gray-500">Fleet <b className="font-mono">{info.fleet}</b>. Each node gets its own token: a copied token speaks for one node only.</p>
+                        </>)}
+                        {bulk && (<>
+                            <p id="hbJoinMade"><b>{bulk.tokens.length}</b> tokens made, one per node. They are shown only now: download the CSV and keep it private.
+                                {bulk.tokens.some((t) => t.known) && ' Some nodes are already known: a node set up with its new token takes its place.'}</p>
+                            <p>Set the nodes up with the agent's bulk tool (SSH, no EdgeShell), from a clone of the
+                                <a className="text-blue-600 underline mx-1" href={info.agent} target="_blank" rel="noopener noreferrer">heartbeat agent</a>:</p>
+                            <code className={code}>{'python tools/bulk_setup.py     # set up nodes: pick this CSV and your nodes CSV'}</code>
+                            <p className="text-xs text-gray-500">Or one by one: on each node <code className="font-mono">sudo python3 setup.py</code> with its row's token. The nodes appear here by themselves.</p>
+                        </>)}
+                        {info && info.enabled && !many && !made && (<>
+                            <label className="block">
+                                <span className="font-medium">Node name</span>
+                                <input id="hbJoinName" className={field + ' mt-1'} value={name} maxLength={63} autoFocus placeholder="pi-node-01"
+                                    onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) create(); }} />
+                                <span className="text-xs text-gray-500">Letters, digits, dots, dashes, underscores: the name shown on this page.</span>
+                            </label>
+                            <p className="text-xs text-gray-500">Fleet <b id="hbFleet" className="font-mono">{info.fleet}</b>, broker {info.broker}:{info.port}{info.tls ? ' (TLS)' : ''}.
+                                Only nodes with a token from this SenseHive can appear here.</p>
+                        </>)}
+                        {made && (<>
+                            {made.known && <p className="text-amber-700">{made.node} is already known: a node set up with this token takes its place.</p>}
+                            <p><b>1.</b> On the node, over SSH or at its own screen:</p>
+                            <code className={code}>{cmds}</code>
+                            <p><b>2.</b> Paste this join token when asked, then the broker username and password. The token is a secret for <b>{made.node}</b> only: do not share it or save it in a file.</p>
+                            <code id="hbJoinToken" className={code}>{made.token}</code>
+                            <p className="text-xs text-gray-500">setup.py checks the token and installs the agent as a system service; the node never holds the
+                                fleet master key. It shows fleet <b className="font-mono">{made.fleet}</b> with <code className="font-mono">sudo python3 setup.py --status</code>.</p>
+                        </>)}
+                        {error && <p className="text-red-600">{error}</p>}
+                    </div>
+                    <div className={`flex flex-wrap items-center justify-end gap-2 px-5 sm:px-6 py-4 border-t ${borderClass} flex-shrink-0`}>
+                        <span className="mr-auto text-sm text-green-600">{note}</span>
+                        {bulk ? (<>
+                            <button id="hbJoinCsv" type="button" className={pri} onClick={saveCsv}>Download CSV</button>
+                            <button type="button" className={btn} onClick={onClose}>Done</button>
+                        </>) : many ? (<>
+                            <button type="button" className={btn} onClick={onClose}>Cancel</button>
+                            {info && info.enabled && <button id="hbJoinMakeMany" type="button" className={pri} disabled={!list.length} onClick={createMany}>Create {list.length || ''} tokens</button>}
+                        </>) : made ? (<>
+                            <button type="button" className={btn} onClick={() => copy(cmds, 'Commands')}>Copy commands</button>
+                            <button id="hbJoinCopy" type="button" className={btn} onClick={() => copy(made.token, 'Token')}>Copy token</button>
+                            <button type="button" className={btn} onClick={() => { setMade(null); setName(''); setNote(''); }}>Another node</button>
+                            <button type="button" className={pri} onClick={onClose}>Done</button>
+                        </>) : (<>
+                            <button type="button" className={btn} onClick={onClose}>Cancel</button>
+                            {info && info.enabled && <button id="hbJoinGo" type="button" className={pri} disabled={!name.trim()} onClick={create}>Create token</button>}
+                        </>)}
+                    </div>
+                </div>
+            </div>,
+            document.body
+        );
+    }
+
     // ------------------------------------------------------------- view
     function HeartbeatsView({ darkMode, cardBg, borderClass }) {
         const [info, setInfo] = useState(null);
@@ -312,6 +467,7 @@
         const [state, setState] = useState('all');                 // all | online | offline | silent
         const [bin, setBin] = useState({ nodes: [], days: 30 });
         const [binOpen, setBinOpen] = useState(false);
+        const [joinOpen, setJoinOpen] = useState(false);
         const load = useCallback(() => {
             fetch('api/heartbeat/nodes').then((r) => r.json()).then(setInfo).catch(() => {});
             fetch('api/heartbeat/bin').then((r) => r.ok ? r.json() : null).then((d) => d && setBin(d)).catch(() => {});
@@ -320,6 +476,7 @@
         const binAction = (action, names) => fetch('api/heartbeat/bin', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, names }),
         }).then((r) => r.json().then((d) => { if (!r.ok) throw new Error(d.error || 'Failed'); load(); return d.changed; }));
+        const closeJoin = useCallback(() => { setJoinOpen(false); load(); }, [load]);
         const toBin = () => binAction('bin', [...selected]).then(() => setSelected(new Set())).catch(() => {});
         const all = info ? info.nodes : [];
         const counts = useMemo(() => all.reduce((c, n) => (c[n.status] = (c[n.status] || 0) + 1, c), {}), [all]);
@@ -367,6 +524,10 @@
                     <button id="hbToBin" disabled={!selected.size} onClick={toBin} title="Move dead nodes to the recycle bin"
                         className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap border ${borderClass} ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} disabled:opacity-50 transition-colors`}>
                         Move to bin ({selected.size})
+                    </button>
+                    <button id="hbAddNode" onClick={() => setJoinOpen(true)} title="Add a node without EdgeShell"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-colors">
+                        Add node
                     </button>
                     <button id="hbBinOpen" onClick={() => setBinOpen(true)} title="Nodes in the recycle bin"
                         className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap border ${borderClass} ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} transition-colors`}>
@@ -434,6 +595,7 @@
                 {open && <History node={open} dark={darkMode} cardBg={cardBg} borderClass={borderClass} onClose={() => setOpen(null)} />}
                 {binOpen && <Bin list={bin.nodes} days={bin.days} darkMode={darkMode} cardBg={cardBg} borderClass={borderClass}
                     onClose={() => setBinOpen(false)} onAction={binAction} />}
+                {joinOpen && <Join darkMode={darkMode} cardBg={cardBg} borderClass={borderClass} onClose={closeJoin} />}
             </div>
         );
     }

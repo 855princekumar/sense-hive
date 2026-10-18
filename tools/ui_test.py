@@ -18,6 +18,7 @@ that:
 Exit code 1 on any failure; screenshots of failures go to --out.
 """
 import argparse
+import base64
 import json
 import os
 import random
@@ -259,7 +260,10 @@ def check_dialog(page, rep, tag, name, clicks, ranges=()):
         issues = layout(page)
         rep.check(f'{tag} {name} {r} fits the screen', not issues, '; '.join(issues[:6]), page)
     page.keyboard.press('Escape')
-    page.wait_for_timeout(250)
+    try:                                          # closes at once; a busy machine may take a moment
+        page.wait_for_selector('.sh-modal', state='detached', timeout=5000)
+    except Exception:                             # noqa: BLE001 - reported by the check below
+        pass
     rep.check(f'{tag} {name} closes', page.locator('.sh-modal').count() == 0, '', page)
 
 
@@ -311,6 +315,14 @@ def run_layout(pw, base, rep, configs, dark=False):
         page.click('#viewHeartbeats')
         page.wait_for_selector('#hbTable tbody tr')
         check_dialog(page, rep, tag, 'heartbeat history dialog', ['.hb-history'], ranges=('1m', '1d', '7d', '30d'))
+        check_dialog(page, rep, tag, 'add node dialog', ['#hbAddNode'])
+        page.click('#hbAddNode')
+        page.fill('#hbJoinName', 'layout-node')
+        page.click('#hbJoinGo')
+        page.wait_for_selector('#hbJoinToken')
+        settle(page)
+        rep.check(f'{tag} add node token fits the screen', not (i := layout(page)), '; '.join(i[:6]), page)
+        page.keyboard.press('Escape')
         page.click('#hbBinOpen')
         page.wait_for_selector('#hbBinDialog')
         settle(page)
@@ -421,11 +433,17 @@ def run_interactions(pw, base, rep, label, w, h, scale):
     text = page.inner_text('.sh-modal')
     rep.check(f'{label}: heartbeat history shows the figures', 'Heartbeats received' in text and 'Longest break' in text, text[:200], page)
     page.click('.sh-modal [data-range="1d"]')
-    page.wait_for_timeout(800)
-    text = page.inner_text('.sh-modal')
+    for _ in range(60):                           # the day's figures arrive with the chart
+        text = page.inner_text('.sh-modal')
+        if '3 min' in text:
+            break
+        page.wait_for_timeout(250)
     rep.check(f'{label}: the 3-minute break is found', 'Breaks' in text and '3 min' in text, text[:300], page)
     page.click('.sh-modal [data-range="7d"]')
-    page.wait_for_timeout(800)
+    for _ in range(60):                           # the chart draws when its data arrives (no eval: the CSP forbids it)
+        if page.locator('.sh-modal svg rect').count() > 100:
+            break
+        page.wait_for_timeout(250)
     rep.check(f'{label}: 7 days shows hourly uptime bars', page.locator('.sh-modal svg rect').count() > 100,
               page.locator('.sh-modal svg rect').count(), page)
     rep.check(f'{label}: an online node has no outage banner', page.locator('#hbDownNow').count() == 0, '', page)
@@ -447,9 +465,13 @@ def run_interactions(pw, base, rep, label, w, h, scale):
     text = page.inner_text('.sh-modal')
     rep.check(f'{label}: the outage is listed as a break still going', '(still going)' in text, text[:300], page)
     page.click('.sh-modal [data-range="30d"]')
-    page.wait_for_timeout(800)
+    try:
+        page.wait_for_selector('#hbDownNow', timeout=15000)
+    except Exception:                             # noqa: BLE001 - reported by the check below
+        pass
     rep.check(f'{label}: the outage shows on 30 days too', page.locator('#hbDownNow').count() == 1, '', page)
     page.keyboard.press('Escape')
+    page.wait_for_selector('.sh-modal', state='detached', timeout=10000)
 
     boxes = page.locator('#hbTable tbody input[type=checkbox]')
     boxes.nth(0).check()
@@ -490,6 +512,47 @@ def run_interactions(pw, base, rep, label, w, h, scale):
     page.locator('#hbTable tbody tr', has_text='retired-sensor').wait_for(state='detached', timeout=15000)
     rep.check(f'{label}: moving a node to the bin hides it', page.locator('#hbTable tbody tr').count() == len(HB_NODES),
               page.locator('#hbTable tbody tr').count(), page)
+
+    # Add a node without EdgeShell: a join token, never the master key
+    page.click('#hbAddNode')
+    page.wait_for_selector('#hbJoinName')
+    fleet = page.inner_text('#hbFleet').strip()
+    rep.check(f'{label}: the add node dialog shows this fleet', re.fullmatch(r'[0-9a-f]{12}', fleet) is not None, fleet, page)
+    page.fill('#hbJoinName', 'bad name')
+    page.click('#hbJoinGo')
+    page.wait_for_selector('#hbJoinDialog .text-red-600')
+    rep.check(f'{label}: a bad node name is refused', 'node name' in page.inner_text('#hbJoinDialog'), '', page)
+    page.fill('#hbJoinName', f'ui-{label}')
+    page.click('#hbJoinGo')
+    page.wait_for_selector('#hbJoinToken')
+    token = page.inner_text('#hbJoinToken').strip()
+    raw = token[5:]
+    body = json.loads(base64.urlsafe_b64decode(raw + '=' * (-len(raw) % 4))) if token.startswith('hbj1.') else {}
+    rep.check(f'{label}: a join token for the node, without the master key',
+              body.get('node') == f'ui-{label}' and os.environ['HEARTBEAT_MASTER_KEY'] not in token
+              and 'git clone https://github.com/855princekumar/mqtt-heartbeat-service' in page.inner_text('#hbJoinDialog'),
+              token[:30], page)
+    page.keyboard.press('Escape')
+    page.wait_for_selector('#hbJoinDialog', state='detached')
+
+    # Many nodes: a CSV of tokens, one per node, for the agent's bulk tool
+    page.click('#hbAddNode')
+    page.click('#hbJoinMany')
+    page.fill('#hbJoinPrefix', f'ui-{label}-')
+    page.fill('#hbJoinTo', '5')
+    page.click('#hbJoinFill')
+    rep.check(f'{label}: the list fills from a prefix', '5 listed' in page.inner_text('#hbJoinDialog'), '', page)
+    page.click('#hbJoinMakeMany')
+    page.wait_for_selector('#hbJoinMade')
+    rep.check(f'{label}: the tokens dialog fits the screen', not (i := layout(page)), '; '.join(i[:6]), page)
+    with page.expect_download() as dl:
+        page.click('#hbJoinCsv')
+    rows = read_text(dl.value.path()).splitlines()
+    rep.check(f'{label}: the tokens download as CSV, one per node, never the master key',
+              rows[0] == 'node,token' and len(rows) == 6 and rows[1].startswith(f'ui-{label}-01,hbj1.')
+              and all(os.environ['HEARTBEAT_MASTER_KEY'] not in r for r in rows), rows[:2], page)
+    page.keyboard.press('Escape')
+    page.wait_for_selector('#hbJoinDialog', state='detached')
     page.click('#viewTopics')
     page.wait_for_selector('.sh-card')
 

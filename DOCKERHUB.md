@@ -32,7 +32,8 @@ under **Settings**.
 | Tag | Description |
 | --- | ----------- |
 | `latest` | Latest release, multi-arch (amd64 + arm64) |
-| `1.7.0`, `1.7` | SenseHive 1.7.0, multi-arch |
+| `1.8.0`, `1.8` | SenseHive 1.8.0, multi-arch |
+| `1.7.0`, `1.7` | SenseHive 1.7.0 |
 | `1.6.1`, `1.6` | SenseHive 1.6.1 |
 | `1.6.0` | SenseHive 1.6.0 |
 | `1.5.0`, `1.5` | SenseHive 1.5.0 |
@@ -62,6 +63,13 @@ Apple Silicon). Docker picks the right architecture automatically.
 | Security | Login-protected UI and API, no CDN and a strict Content Security Policy, SQL-safe topic names, salted slow password hashes, lockout after repeated failed sign-ins, CSRF protection, HttpOnly cookies, persistent random session secret, no data baked into the image |
 | Operations | `/api/health` and `/api/status` endpoints, Docker HEALTHCHECK, timezone-aware timestamps |
 | Heartbeats (1.2) | Optional receiver for the [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service): encrypted, authenticated heartbeats and LWT over a public broker, `/heartbeats` page, read-only API. Off unless `HEARTBEAT_MASTER_KEY` is set |
+
+## What's new in 1.8.0
+
+- Add a heartbeat node without EdgeShell: Heartbeats, Add node, a join token; on the node `git clone` the agent and `sudo python3 setup.py`, and it appears by itself
+- Many nodes: up to 500 tokens as a CSV for the agent's bulk SSH tool; `HEARTBEAT_BROKER_USERNAME` / `HEARTBEAT_BROKER_PASSWORD` for a broker with logins
+- `HEARTBEAT_MASTER_KEY=auto`: every SenseHive its own private fleet; nodes of other SenseHives on the same broker never appear
+- Tested without hardware: PowerPulse firmware on a simulated ESP32 and the heartbeat agent on a systemd node, in CI
 
 ## What's new in 1.7.0
 

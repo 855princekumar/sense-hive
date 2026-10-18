@@ -7,13 +7,20 @@ to the heartbeat broker), separate from the broker configured in the
 dashboard, and its own tables, so nothing else in SenseHive changes.
 
 Settings (environment)
-    HEARTBEAT_MASTER_KEY    64 hex characters, the fleet master key (secret)
+    HEARTBEAT_MASTER_KEY    64 hex characters, the fleet master key (secret), or
+                            "auto": a random key made once and kept next to the
+                            database (heartbeat_master_key, owner only)
     HEARTBEAT_API_TOKEN     bearer token for GET /api/heartbeat/* (secret; at
                             least 32 characters). Without it only a signed-in
                             dashboard user can read the API.
     HEARTBEAT_BROKER        default broker.hivemq.com
     HEARTBEAT_PORT          default 8883
     HEARTBEAT_TLS           default true
+    HEARTBEAT_BROKER_USERNAME / HEARTBEAT_BROKER_PASSWORD
+                            SenseHive's own login on the heartbeat broker (secret)
+    HEARTBEAT_NODE_BROKER   host[:port] nodes use for the same broker, written into join
+                            tokens, when it differs from HEARTBEAT_BROKER (e.g. SenseHive
+                            reaches it by a Docker name, nodes by a public name)
     HEARTBEAT_STALE_SECONDS a node with no heartbeat for this long is "silent" (35)
     HEARTBEAT_KEEP_DAYS     per-minute presence and events kept for (30)
     HEARTBEAT_BEATS_HOURS   every verified heartbeat kept for (48; 0 keeps none)
@@ -21,8 +28,13 @@ Settings (environment)
                             faster ones are dropped, so a stolen node key cannot
                             flood the history
 """
+import base64
 import csv
+import hashlib
 import hmac
+import json
+import re
+import secrets
 import io
 import math
 import os
@@ -33,6 +45,51 @@ try:
     from . import heartbeat_protocol as hp
 except ImportError:                     # run as app.py (Docker image, tests)
     import heartbeat_protocol as hp
+
+
+NODE_NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$')
+JOIN_PREFIX = 'hbj1.'
+JOIN_BULK_MAX = 500
+
+
+def master_from_env(key_file=None):
+    """HEARTBEAT_MASTER_KEY as hex, '' when off. "auto" reads (or makes, once)
+    a random key in `key_file`, so every SenseHive has its own fleet."""
+    key = os.getenv('HEARTBEAT_MASTER_KEY', '').strip()
+    if key.lower() != 'auto':
+        return key
+    if not key_file:
+        raise ValueError('HEARTBEAT_MASTER_KEY=auto needs a data folder')
+    try:
+        with open(key_file) as f:
+            saved = f.read().strip()
+        if re.fullmatch(r'[0-9a-fA-F]{64}', saved):
+            return saved
+    except OSError:
+        pass
+    saved = secrets.token_hex(32)
+    fd = os.open(key_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)        # owner only
+    with os.fdopen(fd, 'w') as f:
+        f.write(saved)
+    return saved
+
+
+def fleet_id(topic_key):
+    """A short public name for a fleet: nodes and SenseHive show the same one
+    when they share a master key. Reveals nothing about the keys."""
+    return hashlib.sha256(b'fleet id|' + topic_key).hexdigest()[:12]
+
+
+def join_token(master, node, broker, port, tls):
+    """Everything one node needs, as one line to paste into the agent's setup.py:
+    its name and keys (never the master key) and the broker SenseHive listens on."""
+    p = hp.provision(master, node)
+    body = {'v': 1, 'node': node, 'kid': p['HB_KID'], 'nk': p['HB_NODE_KEY'], 'tk': p['HB_TOPIC_KEY'],
+            'broker': broker, 'port': port, 'tls': tls}
+    text = json.dumps(body, separators=(',', ':'), sort_keys=True)
+    body['c'] = hashlib.sha256(text.encode()).hexdigest()[:8]                 # catches a cut or mistyped paste
+    raw = json.dumps(body, separators=(',', ':'), sort_keys=True).encode()
+    return JOIN_PREFIX + base64.urlsafe_b64encode(raw).decode().rstrip('=')
 
 
 def _flag(name, default):
@@ -99,8 +156,8 @@ def iso(t):
 class Receiver:
     """One per process. `db` opens a sqlite3 connection (the app's get_db)."""
 
-    def __init__(self, db, master=None, clock=time.time):
-        key = master if master is not None else os.getenv('HEARTBEAT_MASTER_KEY', '').strip()
+    def __init__(self, db, master=None, clock=time.time, key_file=None):
+        key = master if master is not None else master_from_env(key_file)
         self.master = bytes.fromhex(key) if isinstance(key, str) and key else key or None
         if self.master is not None and len(self.master) != 32:
             raise ValueError('HEARTBEAT_MASTER_KEY must be 64 hex characters (32 bytes)')
@@ -120,6 +177,24 @@ class Receiver:
     @property
     def enabled(self):
         return self.master is not None
+
+    def broker(self):
+        """The broker as nodes reach it: host, port, TLS (what a join token carries)."""
+        host = os.getenv('HEARTBEAT_BROKER', 'broker.hivemq.com').strip() or 'broker.hivemq.com'
+        port = _int('HEARTBEAT_PORT', 8883)
+        node = os.getenv('HEARTBEAT_NODE_BROKER', '').strip()
+        if node:
+            name, _, num = node.partition(':')
+            if re.fullmatch(r'[A-Za-z0-9.-]{1,253}', name) and (not num or (num.isdigit() and 0 < int(num) < 65536)):
+                host, port = name, int(num) if num else port
+        return host, port, _flag('HEARTBEAT_TLS', True)
+
+    def fleet(self):
+        return fleet_id(hp.topic_key(self.master)) if self.enabled else ''
+
+    def join(self, node):
+        host, port, tls = self.broker()
+        return join_token(self.master, node, host, port, tls)
 
     # ------------------------------------------------------------------ storage
     def init_db(self):
@@ -219,6 +294,9 @@ class Receiver:
         c = client_factory()
         if _flag('HEARTBEAT_TLS', True):
             c.tls_set()
+        user = os.getenv('HEARTBEAT_BROKER_USERNAME', '').strip()
+        if user:
+            c.username_pw_set(user, os.getenv('HEARTBEAT_BROKER_PASSWORD', ''))
 
         def on_connect(client, userdata, flags, rc, *rest):
             self.connected = (getattr(rc, 'value', rc) or 0) == 0
@@ -465,13 +543,13 @@ class Receiver:
         return hmac.compare_digest(header[7:].strip().encode(), token.encode())
 
 
-def register(app, get_db, login_ok, client_factory):
+def register(app, get_db, login_ok, client_factory, data_dir=None):
     """Add the read-only API to the Flask app and return the receiver."""
     from flask import jsonify, request
 
     from flask import Response
 
-    rx = Receiver(get_db)
+    rx = Receiver(get_db, key_file=os.path.join(data_dir, 'heartbeat_master_key') if data_dir else None)
     bad_tokens = {}                     # client address -> failure times (lockout)
     bad_lock = threading.Lock()
 
@@ -523,6 +601,43 @@ def register(app, get_db, login_ok, client_factory):
             return jsonify({'error': 'Authentication required'}), 401
         return jsonify({'enabled': rx.enabled, 'connected': rx.connected, 'rejected': rx.rejected,
                         'flooded': rx.flooded, 'nodes': len(rx.tracker.nodes)})
+
+    @app.route('/api/heartbeat/join', methods=['GET', 'POST'])
+    def heartbeat_join():
+        """A join token for one node (signed-in users only, never the read-only
+        token): pasted into the agent's setup.py on the node. GET: is it possible."""
+        if not login_ok():
+            return jsonify({'error': 'Authentication required'}), 401
+        host, port, tls = rx.broker()
+        info = {'enabled': rx.enabled, 'fleet': rx.fleet(), 'broker': host, 'port': port, 'tls': tls,
+                'agent': 'https://github.com/855princekumar/mqtt-heartbeat-service'}
+        if request.method == 'GET':
+            return jsonify(info)
+        if not rx.enabled:
+            return jsonify({'success': False, 'error': 'The heartbeat receiver is off: set HEARTBEAT_MASTER_KEY '
+                                                       '(or HEARTBEAT_MASTER_KEY=auto) and restart SenseHive.'}), 409
+        data = request.get_json(silent=True) or {}
+        bad_name = ('A node name is 1 to 63 letters, digits, dots, dashes or underscores, starting with a '
+                    'letter or digit.')
+        if 'nodes' in data:                                   # many at once, for a CSV
+            nodes = data['nodes']
+            if not isinstance(nodes, list) or not 1 <= len(nodes) <= JOIN_BULK_MAX:
+                return jsonify({'success': False, 'error': f'Give 1 to {JOIN_BULK_MAX} node names.'}), 400
+            names = [n.strip() if isinstance(n, str) else '' for n in nodes]
+            bad = [n for n in names if not NODE_NAME.match(n)]
+            if bad:
+                return jsonify({'success': False, 'error': f'{bad_name} Not valid: {", ".join(bad[:5])[:200]}'}), 400
+            if len(set(names)) != len(names):
+                return jsonify({'success': False, 'error': 'A node name is listed twice.'}), 400
+            known = set(rx.node_names()) | {n['name'] for n in rx.binned()}
+            return jsonify({'success': True, 'tokens': [{'node': n, 'token': rx.join(n), 'known': n in known}
+                                                        for n in names], **info})
+        node = data.get('node')
+        if not isinstance(node, str) or not NODE_NAME.match(node.strip()):
+            return jsonify({'success': False, 'error': bad_name}), 400
+        node = node.strip()
+        known = node in rx.node_names() or any(n['name'] == node for n in rx.binned())
+        return jsonify({'success': True, 'node': node, 'token': rx.join(node), 'known': known, **info})
 
     @app.route('/api/heartbeat/bin', methods=['GET', 'POST'])
     def heartbeat_bin():

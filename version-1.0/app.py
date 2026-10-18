@@ -15,7 +15,7 @@ import queue
 import pytz
 from functools import wraps
 
-__version__ = '1.7.0'
+__version__ = '1.8.0'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
@@ -1196,7 +1196,8 @@ except ImportError:                          # run as app.py (Docker image, test
     import heartbeat as heartbeat_module
 
 heartbeat_receiver = heartbeat_module.register(app, get_db, lambda: 'logged_in' in session,
-                                               lambda: new_mqtt_client())  # noqa: PLW0108 - looked up at call time
+                                               lambda: new_mqtt_client(),  # noqa: PLW0108 - looked up at call time
+                                               data_dir=os.path.dirname(os.path.abspath(DB_PATH)))
 
 
 # ============================================================================

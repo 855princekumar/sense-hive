@@ -116,6 +116,12 @@ CSV export for one, the selected or all nodes. See
 
 ![Heartbeats](../assets/heartbeats.png)
 
+### Add node
+
+**Add node** gives a one-line join token for a new node; on the node,
+`git clone` the agent and run `sudo python3 setup.py`. The node then appears
+here by itself. See [Adding a node without EdgeShell](HEARTBEAT.md#adding-a-node-without-edgeshell).
+
 ### Recycle bin
 
 Nodes that are gone for good (retired, replaced) can be moved out of the list:
