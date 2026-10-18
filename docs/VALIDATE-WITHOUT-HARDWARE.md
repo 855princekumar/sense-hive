@@ -51,15 +51,18 @@ GitHub Actions. The power cut is real: the simulation stops without a goodbye,
 the broker notices within its 15 s keepalive window and publishes the node's
 last will, and SenseHive shows it offline.
 
-**The heartbeat agent from a join token**, on a Debian 12 systemd node
-(measured on a Windows laptop with Docker Desktop; CI prints its own numbers):
-`setup.py` installs in **16 s**; the node shows online **34 s** later (mostly
-the agent's Python start in that container); a second SenseHive on the same
-broker **never** sees it; a stopped agent shows **silent** after the 35 s
-staleness window. The same runs checked that the token never holds the master
-key, a cut token installs nothing, the service runs as its own user with
-private key and login files, nothing is left in temp folders, and uninstall
-removes everything.
+**The heartbeat agent from a join token**, on a Debian 12 systemd node, measured
+by the agent's CI (GitHub-hosted runner, a local broker): `setup.py` checks the
+token, tries the ways to the broker with a real login and installs the service
+in **5.4 s**; the node shows **online** in SenseHive **0.1 s** later; a second
+SenseHive on the same broker **never** sees it; a stopped agent shows **silent**
+after the 35 s staleness window (28 s after the stop). The bulk SSH tool set up
+three nodes in **8 s** and rolled a new broker password out to all three in
+**2.3 s**, without a restart. The same runs check that the token never holds the
+master key, a cut token installs nothing, a wrong broker password is refused and
+the old one kept, the service runs as its own user with private key, login and
+settings files, nothing is left in temp folders, and uninstall removes
+everything.
 
 ## Run it yourself
 
