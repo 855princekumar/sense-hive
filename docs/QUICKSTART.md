@@ -155,12 +155,21 @@ sudo systemctl enable --now sensehive
 
 [![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2F855princekumar%2Fsensehive-ha-addon)
 
-1. **Add the repository**: the button above, or **Settings, Add-ons, Add-on Store**, the menu
+1. **Add the repository**: the button above, or **Settings, Apps, Install app** (older Home Assistant: **Settings, Add-ons, Add-on Store**), the menu
    (top right), **Repositories**: `https://github.com/855princekumar/sensehive-ha-addon`
 2. **Install** SenseHive, then **Start**.
 3. Turn on **Show in sidebar**.
 4. Open **SenseHive** from the sidebar. Home Assistant has already signed you in, and if the
    **Mosquitto broker** add-on is installed, SenseHive is connected to it by itself.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/855princekumar/sensehive-ha-addon/main/docs/screenshots/ha-panel-laptop.png" width="72%" alt="SenseHive in the Home Assistant sidebar" />
+  <img src="https://raw.githubusercontent.com/855princekumar/sensehive-ha-addon/main/docs/screenshots/ha-panel-phone.png" width="20%" alt="SenseHive in the Home Assistant app on a phone" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/855princekumar/sensehive-ha-addon/main/docs/screenshots/ha-addon-info.png" width="45%" alt="The add-on's page in Home Assistant: Start, Show in sidebar, Open Web UI" />
+  <img src="https://raw.githubusercontent.com/855princekumar/sensehive-ha-addon/main/docs/screenshots/ha-addon-config.png" width="45%" alt="The add-on's options in Home Assistant" />
+</p>
 
 The data lives in the add-on's folder, so it is in Home Assistant backups. Direct access on
 port 5000 is off unless you set a port in the add-on's **Network** settings. Full guide and
