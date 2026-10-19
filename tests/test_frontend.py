@@ -39,7 +39,7 @@ def test_the_built_files_match_their_checksums():
         with open(os.path.join(ROOT, 'static', path), 'rb') as fh:
             assert hashlib.sha256(fh.read()).hexdigest() == digest, path
     assert {'dashboard.js', 'login.js', 'heartbeats.js', 'secure.js', 'sensehive.css',
-            'vendor/react.production.min.js', 'vendor/react-dom.production.min.js'} <= set(listed)
+            'vendor/react.js'} <= set(listed)
 
 
 def test_pages_are_served_with_a_strict_script_policy(sh):
@@ -49,4 +49,17 @@ def test_pages_are_served_with_a_strict_script_policy(sh):
     assert "script-src 'self'" in csp and 'unsafe-eval' not in csp and "object-src 'none'" in csp
     assert r.headers['X-Content-Type-Options'] == 'nosniff'
     assert c.get('/static/login.js').status_code == 200
-    assert c.get('/static/vendor/react.production.min.js').status_code == 200
+    assert c.get('/static/vendor/react.js').status_code == 200
+
+
+def test_react_is_bundled_locally_and_exposed_as_the_pages_expect():
+    """React 19 has no UMD files: tools/react_globals.js is bundled into vendor/react.js,
+    which sets the globals React and ReactDOM (with createRoot and createPortal)."""
+    with open(os.path.join(ROOT, 'static', 'vendor', 'react.js'), encoding='utf-8') as fh:
+        js = fh.read()
+    assert 'window.React=' in js.replace(' ', '') and 'window.ReactDOM=' in js.replace(' ', '')
+    assert 'createRoot' in js and 'createPortal' in js and '19.3.0' in js
+    for page in ('index.html', 'login.html'):
+        with open(os.path.join(ROOT, 'templates', page), encoding='utf-8') as fh:
+            html = fh.read()
+        assert 'static/vendor/react.js' in html and 'production.min.js' not in html
