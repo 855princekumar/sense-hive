@@ -2,17 +2,237 @@
   <img src="assets/banner.svg" alt="SenseHive Banner"/>
 </p>
 
-![Release](https://img.shields.io/badge/release-v1.8.2-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![PowerPulse](https://img.shields.io/badge/ESP32%20device-PowerPulse-0ea5e9.svg?logo=espressif&logoColor=white)](https://github.com/855princekumar/powerpulse) [![Devices](https://github.com/855princekumar/sense-hive/actions/workflows/devices.yml/badge.svg)](docs/VALIDATE-WITHOUT-HARDWARE.md) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-28%20MB%20idle%20%7C%2035%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
+![Release](https://img.shields.io/badge/release-v1.8.2-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![PowerPulse](https://img.shields.io/badge/ESP32%20device-PowerPulse-0ea5e9.svg?logo=espressif&logoColor=white)](https://github.com/855princekumar/powerpulse) [![Devices](https://github.com/855princekumar/sense-hive/actions/workflows/devices.yml/badge.svg)](docs/VALIDATE-WITHOUT-HARDWARE.md) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-35%20MB%20idle%20%7C%2038%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
 
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
 **Run → Add Topic → Publish → See Data in under 30 seconds.**
 
 <p align="center">
-<a href="https://sense-hive.855princekumar.workers.dev/" target="_blank">
-  <img width="659" height="380" alt="image" src="https://github.com/user-attachments/assets/477bf954-321b-42cb-94dc-40e997596880" />
-</a>
+  <a href="https://sense-hive.855princekumar.workers.dev/"><img src="assets/dashboard.png" width="88%" alt="The SenseHive dashboard: topics with live values and last-will status" /></a>
 </p>
+
+**SenseHive** is a lightweight, self-hosted MQTT data logger and real-time dashboard. Add a topic,
+publish, and every message is kept in SQLite and shown live: values, history, charts and CSV, with
+each device **online or offline from its last will**. Encrypted device topics and edge-node
+**heartbeats** appear by themselves. It runs in **under 40 MB of memory**, from a 55 MB image, a
+pip package, natively, or as a **Home Assistant add-on**.
+
+**Contents:** [Quick start](#quick-start) ([pip](#1-pip-package) · [Home Assistant](#2-home-assistant-add-on) ·
+[Docker](#3-docker) · [native](#4-native-install)) · [First topic](#your-first-topic) ·
+[Screenshots](#screenshots) · [Performance](#performance) · [Everything else](#index)
+
+---
+
+## Quick start
+
+Four ways. Each is tested end to end on every change with a real broker, an emulated fleet and a
+browser; every command and output below is real. Step by step with more screenshots and
+troubleshooting: **[docs/QUICKSTART.md](docs/QUICKSTART.md)**.
+
+### 1. pip package
+
+Python 3.9 or newer, any operating system: [`sensehive-iot` on PyPI](https://pypi.org/project/sensehive-iot/).
+
+```bash
+pip install sensehive-iot
+sensehive --port 5000 --broker localhost        # your MQTT broker
+```
+
+```text
+$ sensehive --version
+sensehive 1.8.2
+$ curl http://localhost:5000/api/health
+{"mqtt_connected":true,"status":"healthy","timestamp":"2026-10-19T20:07:19.850545"}
+```
+
+Open **http://localhost:5000**, sign in as `admin` / `admin123`, and change the password in
+**Settings**. No devices yet? `sensehive-demo` comes with the package: an emulated fleet, each
+device with its own last will and live JSON readings, added as nodes for you:
+
+```text
+$ sensehive-demo --broker localhost --register http://localhost:5000
+5 of 5 devices are nodes in http://localhost:5000
+5 devices online on localhost:1883, a reading every 5s (Ctrl+C to stop)
+```
+
+<p align="center">
+  <img src="assets/quickstart-laptop.png" width="72%" alt="The dashboard filled by sensehive-demo after pip install sensehive-iot" />
+  <img src="assets/quickstart-phone.png" width="20%" alt="The same on a phone" />
+</p>
+
+A real `pip install sensehive-iot` from PyPI with the emulated fleet running: a card per device,
+live readings, **Active** from each device's last will; stop the fleet and they turn **Inactive**.
+
+### 2. Home Assistant add-on
+
+[![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2F855princekumar%2Fsensehive-ha-addon)
+
+1. **Add the repository**: the button, or **Settings, Apps, Install app** (older Home Assistant: **Settings, Add-ons, Add-on Store**), the menu,
+   **Repositories**: `https://github.com/855princekumar/sensehive-ha-addon`
+2. **Install** SenseHive, then **Start**
+3. Turn on **Show in sidebar**
+4. Open **SenseHive** from the sidebar: no second sign-in, and the Mosquitto broker add-on is found by itself
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/855princekumar/sensehive-ha-addon/main/docs/screenshots/ha-panel-laptop.png" width="72%" alt="SenseHive in the Home Assistant sidebar, connected to the Mosquitto add-on" />
+  <img src="https://raw.githubusercontent.com/855princekumar/sensehive-ha-addon/main/docs/screenshots/ha-panel-phone.png" width="20%" alt="SenseHive in the Home Assistant app on a phone" />
+</p>
+
+A real Home Assistant (Supervisor and Core) with the Mosquitto add-on and an emulated fleet.
+amd64 and aarch64 (Raspberry Pi 4/5), data in Home Assistant backups, AppArmor, security rating
+8/8. Options, heartbeats, secure topics: [the add-on documentation](https://github.com/855princekumar/sensehive-ha-addon/blob/main/sensehive/DOCS.md).
+
+### 3. Docker
+
+One image for x86 and 64-bit Raspberry Pi (amd64 and arm64), 55 MB:
+
+```bash
+docker run -d --name sensehive --restart unless-stopped -p 5000:5000 \
+  -v sensehive-data:/app/data -e SENSEHIVE_ADMIN_PASSWORD='choose-a-strong-password' \
+  devprincekumar/sense-hive:1.8
+```
+
+Set the broker in **Settings**, or add `-e DEFAULT_BROKER_HOST=192.168.1.10 -e SENSEHIVE_FORCE_BROKER=true`.
+The emulated fleet is in the image too:
+
+```bash
+docker exec sensehive python demo_fleet.py --broker 192.168.1.10 \
+  --register http://127.0.0.1:5000 --password 'choose-a-strong-password'
+```
+
+`:1.8` follows the 1.8 releases; pin one (`:1.8.2`) to update only when you choose. Docker Compose,
+volumes and all variables: [Deployment](#deployment) and [Configuration](docs/CONFIGURATION.md).
+
+### 4. Native install
+
+From source, for development or a machine without Docker:
+
+```bash
+git clone https://github.com/855princekumar/sense-hive
+cd sense-hive/version-1.0
+pip install -r requirements.txt
+python app.py                                   # http://localhost:5000
+```
+
+To start at boot (Linux), run the pip package as a systemd service: the unit file is in
+[docs/QUICKSTART.md](docs/QUICKSTART.md#2-pip).
+
+---
+
+## Your first topic
+
+**Add Node** (top right): the MQTT topic (wildcards work: `sensors/#`, `home/+/temp`), a node id
+(the device), a tag, and optionally the device's last-will topic for its online and offline status.
+
+<p align="center"><img src="assets/add-node.png" width="80%" alt="Add Node: topic, node id, tag, last will" /></p>
+
+Then publish from anywhere; JSON is shown field by field, anything else as text:
+
+```bash
+mosquitto_pub -h localhost -t greenhouse/zone-1/climate -m '{"temperature": 23.4, "humidity": 61}'
+mosquitto_pub -h localhost -t greenhouse/status -m online -r       # the device's last-will topic
+```
+
+Python and ESP32 examples: [docs/QUICKSTART.md](docs/QUICKSTART.md#4-your-own-devices).
+
+### Public brokers for a quick try
+
+You can switch brokers anytime:
+
+* `broker.hivemq.com` (default)
+* `test.mosquitto.org`
+* `broker.emqx.io`
+
+| Broker             | Host                 | Port | Notes                   |
+| ------------------ | -------------------- | ---- | ----------------------- |
+| Eclipse Mosquitto  | `test.mosquitto.org` | 1883 | Very popular, stable    |
+| EMQX Public Broker | `broker.emqx.io`     | 1883 | Good global performance |
+| HiveMQ EU          | `broker.hivemq.com`  | 1883 | Default used            |
+
+Example:
+
+```bash
+mosquitto_pub -h test.mosquitto.org -t test/topic -m "hello again"
+```
+---
+
+#### Tip
+Use a unique topic if testing on public brokers:
+```
+yourname/test/topic1
+```
+You can also use the included test script for automated data simulation if needed.
+
+### Not seeing data?
+
+* Topic must match exactly
+* Use a unique topic (shared brokers)
+* Check host/port (1883)
+* Wait a few seconds
+
+---
+
+## Screenshots
+
+Taken from a real SenseHive in a browser by `tools/screenshots.py` (an example site, made-up
+data), so they always show the current release; CI takes them on every change.
+
+<p align="center">
+  <img src="assets/login.png" width="45%" alt="Sign-in page" />
+  <img src="assets/dashboard-dark.png" width="45%" alt="Dashboard, dark theme" />
+</p>
+<p align="center">
+  <img src="assets/history.png" width="45%" alt="A topic's history, chart and CSV" />
+  <img src="assets/settings.png" width="45%" alt="Settings: broker, retention, password" />
+</p>
+<p align="center">
+  <img src="assets/dashboard-grouped.png" width="45%" alt="Grouped by node" />
+  <img src="assets/heartbeats.png" width="45%" alt="Heartbeats: edge nodes found by themselves" />
+</p>
+<p align="center">
+  <img src="assets/heartbeat-history.png" width="45%" alt="A node's heartbeat history, 1 day" />
+  <img src="assets/heartbeat-uptime.png" width="45%" alt="Heartbeat uptime, 7 days" />
+</p>
+<p align="center">
+  <img src="assets/secure-topics.png" width="90%" alt="Secure topics: encrypted device data, found by itself" />
+</p>
+<p align="center">
+  <img src="assets/secure-keys.png" width="45%" alt="New keys, shown once, with CSV download" />
+  <img src="assets/heartbeat-bin.png" width="45%" alt="Heartbeat recycle bin" />
+</p>
+<p align="center">
+  <img src="assets/phone.png" width="22%" alt="Dashboard on a phone" />
+  <img src="assets/phone-heartbeats.png" width="22%" alt="Heartbeats on a phone" />
+</p>
+
+---
+
+## Performance
+
+**Under 40 MB of memory with 500 edge nodes and 100 busy topics, in a 55 MB image.** SenseHive
+1.8.1 in Docker with a load generator: 500 nodes sending encrypted heartbeats (50 verified
+messages a second), then also 100 topics logging 50 messages a second; median of 5-second samples
+(script in `tools/measure/`, full results in [docs/PERFORMANCE.md](docs/PERFORMANCE.md)):
+
+| Load | CPU (one core) | Memory |
+| ---- | -------------- | ------ |
+| Idle, broker connected, 100 topics subscribed | 0.03 % | 34.5 MB |
+| 500 heartbeat nodes, 50 messages/s decrypted and verified | 10.2 % | 36.0 MB |
+| The same plus 100 topics logging 50 messages/s | 26.6 % | 37.4 MB |
+
+| Also measured | Value |
+| ------------- | ----- |
+| API with 500 nodes and 100 topics | 4 to 16 ms p50, under 20 ms p95 |
+| Heartbeats refused in the run | 0 (all 500 nodes online) |
+| Storage | about 370 bytes a logged message, indexes included |
+| Docker image | 55 MB, amd64 and arm64 |
+
+Intel Core i7-1185G7 laptop, Docker Desktop. Expect a few times the CPU share on a Raspberry Pi
+core; memory stays about the same.
+
+---
+
 
 ## Star History
 
@@ -30,8 +250,10 @@
 
 - [Documentation](#documentation)
 - [The SenseHive Family](#the-sensehive-family)
-- [Quick Start (30 seconds)](#quick-start-30-seconds)
-- [Dashboard Preview](#dashboard-preview)
+- [Quick start](#quick-start)
+- [Your first topic](#your-first-topic)
+- [Screenshots](#screenshots)
+- [Performance](#performance)
 - [Minimum System Requirements](#minimum-system-requirements)
 - [What's New in v1.8](#whats-new-in-v18)
 - [What's New in v1.7](#whats-new-in-v17)
@@ -56,7 +278,6 @@
 - [Test Setup (Quick Validation)](#test-setup-quick-validation)
 - [Example Payload](#example-payload)
 - [Testing and CI/CD](#testing-and-cicd)
-- [Performance Benchmarks](#performance-benchmarks)
 - [Comparison with Existing Solutions](#comparison-with-existing-solutions)
 - [Positioning](#positioning)
 - [When to Use SenseHive](#when-to-use-sensehive)
@@ -110,147 +331,6 @@ numbers, and how to run the same checks yourself before you deploy hardware:
 </p>
 <p align="center">
   <img src="docs/assets/wokwi-results.svg" width="100%" alt="PowerPulse on a simulated ESP32, measured: online at 15.1 s, offline 16.6 s after the power cut" />
-</p>
-
----
-
-## Quick Start (30 seconds)
-
-Get SenseHive running and visualize MQTT data instantly. Three ways, each tested end to end
-in CI with a real broker and a browser; the step-by-step guide with every command, its real
-output and screenshots is **[docs/QUICKSTART.md](docs/QUICKSTART.md)**.
-
-| Docker | pip | Home Assistant |
-| --- | --- | --- |
-| `docker run -d -p 5000:5000 -v sensehive-data:/app/data devprincekumar/sense-hive:1.8` | `pip install sensehive-iot && sensehive --broker localhost` | [Add the repository](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2F855princekumar%2Fsensehive-ha-addon), install, Start, Show in sidebar |
-
-No devices yet? `sensehive-demo --broker localhost --register http://localhost:5000` (with pip;
-`docker exec sensehive python demo_fleet.py ...` with Docker) starts an emulated fleet and adds it:
-
-<p align="center"><img src="assets/quickstart-laptop.png" width="80%" alt="The dashboard filled by sensehive-demo after pip install sensehive-iot" /></p>
-
-### 1. Run the Container
-
-```bash
-docker run -d -p 5000:5000 -v $(pwd)/sensehive-data:/app/data \
-  -e SENSEHIVE_ADMIN_PASSWORD='choose-a-strong-password' devprincekumar/sense-hive:latest
-```
-
-Prefer no Docker? `pip install sensehive-iot && sensehive`. On Home Assistant OS? Install the [add-on](#home-assistant-add-on-haos).
-
----
-
-### 2. Open the Dashboard
-
-```
-http://localhost:5000
-```
-
-Sign in as `admin` with the password you chose (or `admin123` if you did not set one, then change it at once in **Settings**).
-
----
-
-### 3. Add Any MQTT Topic
-
-* Click **“+ Add Node”**
-* Enter a topic (example):
-
-  ```
-  test/topic
-  ```
-* Save
-
-> Example Topics You Can Try
-- home/livingroom/temp
-- sensor/temperature
-- test/topic
-
-No setup required, just Subscribe and watch.
-
----
-
-### 4. Publish Data (From Anywhere)
-
-Publish a message using any MQTT client:
-
-```bash
-mosquitto_pub -h broker.hivemq.com -t test/topic -m "hello world"
-```
-
-That’s it, your data will appear **instantly** on the dashboard, no scripts, no setup.
-
-> Run → Add Topic → Publish → See Data
-
----
-
-### Try Other Public Brokers (Optional)
-
-You can switch brokers anytime:
-
-* `broker.hivemq.com` (default)
-* `test.mosquitto.org`
-* `broker.emqx.io`
-
-| Broker             | Host                 | Port | Notes                   |
-| ------------------ | -------------------- | ---- | ----------------------- |
-| Eclipse Mosquitto  | `test.mosquitto.org` | 1883 | Very popular, stable    |
-| EMQX Public Broker | `broker.emqx.io`     | 1883 | Good global performance |
-| HiveMQ EU          | `broker.hivemq.com`  | 1883 | Default used            |
-
-Example:
-
-```bash
-mosquitto_pub -h test.mosquitto.org -t test/topic -m "hello again"
-```
----
-
-### Tip
-Use a unique topic if testing on public brokers:
-```
-yourname/test/topic1
-```
-You can also use the included test script for automated data simulation if needed.
-
-### Not Seeing Data?
-
-* Topic must match exactly
-* Use a unique topic (shared brokers)
-* Check host/port (1883)
-* Wait a few seconds
-
----
-## Dashboard Preview
-
-Screenshots are taken from a real SenseHive in a browser by `tools/screenshots.py`
-(an example site, made-up data), so they always show the current release; CI takes
-them on every change.
-
-<p align="center">
-  <img src="assets/dashboard.png" width="90%" alt="Dashboard, light theme" />
-</p>
-<p align="center">
-  <img src="assets/login.png" width="45%" alt="Sign-in page" />
-  <img src="assets/dashboard-dark.png" width="45%" alt="Dashboard, dark theme" />
-</p>
-<p align="center">
-  <img src="assets/history.png" width="45%" alt="History of a topic" />
-  <img src="assets/settings.png" width="45%" alt="Settings" />
-</p>
-<p align="center">
-  <img src="assets/add-node.png" width="45%" alt="Add Node: topic, node id, tag, last will" />
-  <img src="assets/dashboard-grouped.png" width="45%" alt="Grouped by node" />
-</p>
-<p align="center">
-  <img src="assets/secure-topics.png" width="90%" alt="Secure topics, found by themselves" />
-</p>
-<p align="center">
-  <img src="assets/secure-keys.png" width="45%" alt="New keys, shown once, with CSV download" />
-  <img src="assets/heartbeat-bin.png" width="45%" alt="Heartbeat recycle bin" />
-</p>
-<p align="center">
-  <img src="assets/heartbeats.png" width="60%" alt="Heartbeats view" />
-  <img src="assets/phone.png" width="18%" alt="Dashboard on a phone" />
-  <img src="assets/phone-heartbeats.png" width="18%" alt="Heartbeats on a phone" />
 </p>
 
 ---
@@ -700,7 +780,7 @@ One-click deployment for Home Assistant OS / Supervised users.
 
 [![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2F855princekumar%2Fsensehive-ha-addon)
 
-1. **Settings → Add-ons → Add-on Store → ⋮ → Repositories**, add `https://github.com/855princekumar/sensehive-ha-addon`
+1. **Settings → Apps → Install app → ⋮ → Repositories** (older Home Assistant: **Settings → Add-ons → Add-on Store**), add `https://github.com/855princekumar/sensehive-ha-addon`
 2. Install **SenseHive**, press **Start**, enable **Show in sidebar**
 3. Open **SenseHive** from the sidebar, add a topic and publish
 
@@ -961,31 +1041,6 @@ npm ci && npm run check                                 # built front end matche
 | CI | Every pull request and push to `main` | Regression tests on Python 3.9 to 3.13 against a real Mosquitto broker, paho-mqtt 1.x compatibility, browser UI test (phone to desktop, 67 to 200 % zoom, CSP violations), ruff, Bandit, pip-audit, front-end build check, CodeQL, wheel build + CLI smoke test, Docker build + container health check |
 | CD | Push to `main` | Full CI, then publishes `devprincekumar/sense-hive:edge` (amd64 + arm64) |
 | CD | Tag `vX.Y.Z` | Full CI, then publishes `X.Y.Z`, `X.Y`, `latest`, `arm-pi-5`, updates the Docker Hub description, publishes `sensehive-iot` to PyPI and creates a GitHub release |
-
----
-
-## Performance Benchmarks
-
-**Lightweight by design: about 28 MB of memory at idle and 35 MB with 500
-heartbeat nodes and 100 busy topics, in a 57 MB image.** Measured with
-SenseHive 1.4.2 (script in `tools/measure/`, full results in
-[docs/PERFORMANCE.md](docs/PERFORMANCE.md)):
-
-| Scenario | CPU (one core) | Memory |
-| -------- | -------------- | ------ |
-| Idle, heartbeat receiver on, 100 topics subscribed | 0.04 % | 28 MB |
-| 500 heartbeat nodes (50 encrypted messages/s verified) | 8.7 % | 34 MB |
-| The same plus 100 topics logging 50 messages/s | 19 % | 35 MB |
-
-| Also measured | Value |
-| ------------- | ----- |
-| API response (500 nodes, 100 topics) | 2 to 8 ms p50, under 10 ms p95 |
-| Storage per logged message | about 270 bytes at most, including indexes |
-| Heartbeats refused in the run | 0 (all 500 nodes online) |
-| Docker image | 57 MB, amd64 and arm64 |
-
-Test machine: Intel Core i7-1185G7 laptop, Docker Desktop. Expect a few times
-the CPU share on a Raspberry Pi core; memory stays about the same.
 
 ---
 
