@@ -184,7 +184,8 @@
                     <div className="sh-modal-body p-4 sm:p-5 space-y-4">
                         <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Period">
                             {RANGES.map(([r, label]) => (
-                                <button key={r} role="tab" aria-selected={range === r} data-range={r} onClick={() => setRange(r)}
+                                <button key={r} role="tab" aria-selected={range === r} data-range={r}
+                                    onClick={() => { if (r !== range) { setData(null); setError(''); setRange(r); } }}
                                     className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${range === r ? 'bg-blue-600 text-white' : dark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}>
                                     {label}
                                 </button>
