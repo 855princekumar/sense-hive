@@ -110,7 +110,7 @@ jobs:
           docker logs sh 2>&1 | grep -q "Traceback" && { echo "traceback in the container log"; exit 1; } || true
           curl -sI http://localhost:5000/login | grep -qi "content-security-policy: default-src 'self'; script-src 'self';"
           curl -sf -o /dev/null http://localhost:5000/static/login.js
-          curl -sf -o /dev/null http://localhost:5000/static/vendor/react.production.min.js
+          curl -sf -o /dev/null http://localhost:5000/static/vendor/react.js
           for i in $(seq 1 40); do [ "$(docker inspect -f '{{.State.Health.Status}}' sh)" = healthy ] && break; sleep 2; done
           docker inspect -f '{{.State.Health.Status}}' sh | grep -q healthy
           docker logs sh

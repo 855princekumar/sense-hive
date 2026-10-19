@@ -1,13 +1,14 @@
 // Build SenseHive's browser code into version-1.0/static (committed):
 //   frontend/*.jsx         -> static/<name>.js     (esbuild: JSX compiled ahead of time, minified)
 //   frontend/input.css     -> static/sensehive.css (Tailwind: only the classes in use, EdgeShell palette)
-//   react, react-dom (UMD) -> static/vendor/        (exact versions from package-lock.json)
+//   react, react-dom       -> static/vendor/react.js (esbuild bundle of tools/react_globals.js,
+//                             exact versions from package-lock.json; React 19 has no UMD files)
 // and write static/SHA256SUMS. `--check` rebuilds into a temporary folder and
 // fails when the committed files differ (CI runs it), so what ships is exactly
 // what the sources produce. Nothing is loaded from a CDN at run time.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,9 +28,8 @@ for (const f of readdirSync(join(root, 'frontend')).filter((f) => /\.jsx?$/.test
 }
 run(bin('tailwindcss'), ['-c', 'tailwind.config.js', '-i', join('frontend', 'input.css'),
   '-o', join(out, 'sensehive.css'), '--minify']);
-for (const [pkg, file] of [['react', 'react.production.min.js'], ['react-dom', 'react-dom.production.min.js']]) {
-  copyFileSync(join(root, 'node_modules', pkg, 'umd', file), join(out, 'vendor', file));
-}
+run(bin('esbuild'), [join('tools', 'react_globals.js'), '--bundle', '--format=iife', '--target=es2018', '--minify',
+  '--legal-comments=none', '--define:process.env.NODE_ENV="production"', `--outfile=${join(out, 'vendor', 'react.js')}`]);
 
 const files = [];
 const walk = (d) => readdirSync(d, { withFileTypes: true }).forEach((e) =>
