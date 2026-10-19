@@ -9,7 +9,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
-COPY app.py heartbeat.py heartbeat_protocol.py secure.py security.py ./
+COPY app.py heartbeat.py heartbeat_protocol.py secure.py security.py demo_fleet.py ./
 COPY templates/ templates/
 COPY static/ static/
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.8.2 (2026-10-20)
+
+**Docs with real screenshots and output**
+- [docs/QUICKSTART.md](docs/QUICKSTART.md): Docker, pip and the Home Assistant add-on step by
+  step, every command with its real output, screenshots of a real pip install with the emulated
+  fleet, publishing from the command line, Python and an ESP32, troubleshooting.
+- Screenshots of an example site (greenhouse, cold room, pump house...) instead of test data,
+  connected to a broker, plus Add Node and the heartbeats on a phone; about half the size.
+- CI takes every screenshot on every change (a real SenseHive in a browser, artifact
+  `screenshots`; the quick start pictures from the pip run, `quickstart-screenshots`), and a
+  test fails when a doc shows a picture that is missing or that no tool takes.
+
+**Docker**
+- The emulated fleet is in the image: `docker exec sensehive python demo_fleet.py ...`; CI's
+  Docker quick start uses the image's own copy.
+
 ## 1.8.1 (2026-10-19)
 
 **Try it in a minute, tested the way people use it**

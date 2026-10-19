@@ -93,7 +93,7 @@ def check_fleet(frame, page, fleet, rep, label):
     rep.check(f'{label}: the dashboard fits (no sideways scroll, nothing sticks out)', not issues, '; '.join(issues[:4]), page)
 
 
-def run(url, password, fleet, demo_cmd, broker, out, login=True, open_dashboard=None):
+def run(url, password, fleet, demo_cmd, broker, out, login=True, open_dashboard=None, shots=None, shot_prefix='quickstart'):
     """The checks; `open_dashboard(page)` returns the frame the dashboard is in (Home Assistant)."""
     from playwright.sync_api import sync_playwright
     rep = Report(out)
@@ -123,6 +123,9 @@ def run(url, password, fleet, demo_cmd, broker, out, login=True, open_dashboard=
             if screen == 'phone':
                 stats['dashboard_after_s'] = round(time.time() - t0, 1)
             check_fleet(frame, page, fleet, rep, screen)
+            if shots and screen in ('phone', 'laptop'):     # what a person sees, for the docs
+                os.makedirs(shots, exist_ok=True)
+                page.screenshot(path=os.path.join(shots, '%s-%s.png' % (shot_prefix, screen)))
             if screen == 'laptop':
                 theme = frame.locator('button[title="Toggle theme"]').first
                 rep.check('laptop: the theme button is there', theme.count() == 1, '', page)
@@ -179,17 +182,21 @@ def main():
     ap.add_argument('--devices', type=int, default=6)
     ap.add_argument('--out', default='live-report')
     ap.add_argument('--min-checks', type=int, default=0)
+    ap.add_argument('--shots', help='also save screenshots of the running fleet here (docs)')
+    ap.add_argument('--register-url', help='SenseHive as the fleet reaches it (default: --url; differs when the fleet '
+                                           'runs inside the container)')
     a = ap.parse_args()
     fleet = devices(a.devices, 'sensehive-demo')
     # Register the fleet's topics as a person would with Add Node (the command does it for them)
     r = subprocess.run(shlex.split(a.demo) + ['--broker', a.broker, '--devices', str(a.devices), '--count', '1',
-                                               '--interval', '0', '--register', a.url, '--password', a.password],
+                                               '--interval', '0', '--register', a.register_url or a.url,
+                                               '--password', a.password],
                        check=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
     print(r.stdout.strip())
     if r.returncode != 0 or '%d of %d devices are nodes' % (a.devices, a.devices) not in r.stdout:
         print('FAIL sensehive-demo --register could not add the fleet')
         return 1
-    rep = run(a.url, a.password, fleet, a.demo, a.broker, a.out)
+    rep = run(a.url, a.password, fleet, a.demo, a.broker, a.out, shots=a.shots)
     total = rep.passes + len(rep.fails)
     if a.min_checks and total < a.min_checks:
         print(f'Only {total} checks ran, fewer than {a.min_checks}')
