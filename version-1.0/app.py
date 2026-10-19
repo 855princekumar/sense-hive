@@ -15,7 +15,7 @@ import queue
 import pytz
 from functools import wraps
 
-__version__ = '1.8.0'
+__version__ = '1.8.1'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
@@ -1087,6 +1087,8 @@ def stats():
         'node_list': summary['node_list'],
         'tags': tags,
         'db_size_bytes': db_file_size(),
+        # Inside Home Assistant (ingress) Home Assistant signs people in: no Sign out in the page
+        'ingress': bool(INGRESS_PROXY) and request.remote_addr == INGRESS_PROXY,
         **get_retention_settings(),
     })
 

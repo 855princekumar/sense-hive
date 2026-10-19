@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.8.1 (2026-10-19)
+
+**Try it in a minute, tested the way people use it**
+- `sensehive-demo` (installed with the pip package): an emulated fleet of MQTT devices, each
+  with its own last will and live JSON readings. `--register URL` adds them as nodes, so the
+  dashboard fills in by itself.
+- CI runs the quick start end to end on every change: the built wheel installed in a clean
+  venv (`pip install`, `sensehive --broker ...`), a real Mosquitto broker, the emulated fleet,
+  and a browser on phone, tablet, laptop and desktop (cards, live values, last-will status,
+  details, dark mode, layout, no console errors); the same against the Docker image.
+- The Home Assistant add-on is tested in a real Home Assistant (Supervisor and Core, the
+  official apps devcontainer) with a browser: sign-in, SenseHive in the sidebar, the panel,
+  Add Node, the emulated fleet on Home Assistant's Mosquitto, phone to desktop.
+
+**Dashboard**
+- Inside Home Assistant the page has no Sign out button (Home Assistant signs people in).
+- Long topics wrap after a slash instead of in the middle of a word.
+- Heartbeat history: switching the period goes straight to Loading instead of showing the previous
+  period's figures for a moment under the new label.
+- React 19, bundled locally (React 19 has no UMD files); nothing loads from a CDN.
+
+**Dependencies**
+- Flask 3.1.3, cryptography 50, paho-mqtt 2.1 or newer, Python 3.14 in the Docker image,
+  esbuild 0.28.2, Tailwind 3.4.19.
+
 ## 1.8.0 (2026-10-18)
 
 **Add a heartbeat node without EdgeShell**

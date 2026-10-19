@@ -32,7 +32,7 @@ under **Settings**.
 | Tag | Description |
 | --- | ----------- |
 | `latest` | Latest release, multi-arch (amd64 + arm64) |
-| `1.8.0`, `1.8` | SenseHive 1.8.0, multi-arch |
+| `1.8.1`, `1.8` | SenseHive 1.8.1, multi-arch |
 | `1.7.0`, `1.7` | SenseHive 1.7.0 |
 | `1.6.1`, `1.6` | SenseHive 1.6.1 |
 | `1.6.0` | SenseHive 1.6.0 |
@@ -63,6 +63,12 @@ Apple Silicon). Docker picks the right architecture automatically.
 | Security | Login-protected UI and API, no CDN and a strict Content Security Policy, SQL-safe topic names, salted slow password hashes, lockout after repeated failed sign-ins, CSRF protection, HttpOnly cookies, persistent random session secret, no data baked into the image |
 | Operations | `/api/health` and `/api/status` endpoints, Docker HEALTHCHECK, timezone-aware timestamps |
 | Heartbeats (1.2) | Optional receiver for the [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service): encrypted, authenticated heartbeats and LWT over a public broker, `/heartbeats` page, read-only API. Off unless `HEARTBEAT_MASTER_KEY` is set |
+
+## What's new in 1.8.1
+
+- `sensehive-demo`, an emulated fleet to try SenseHive with; the quick start (pip and Docker) is tested end to end with a broker and a browser in CI.
+- Inside Home Assistant the page has no Sign out button; long topics wrap after a slash.
+- React 19 bundled locally; Flask 3.1.3, cryptography 50, paho-mqtt 2.1+, Python 3.14.
 
 ## What's new in 1.8.0
 

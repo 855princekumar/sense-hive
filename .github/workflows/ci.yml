@@ -77,6 +77,27 @@ jobs:
           test -f /tmp/sensehive-data/iot_dashboard.db
           cat /tmp/cli.log
 
+      - name: A broker and a browser
+        run: |
+          docker run -d --name qsmq -p 1883:1883 eclipse-mosquitto:2.0.20 mosquitto -c /mosquitto-no-auth.conf
+          pip install paho-mqtt playwright==1.55.0
+          python -m playwright install --with-deps chromium
+
+      - name: Quick start end to end (the README's pip install, an emulated fleet, a browser)
+        run: |
+          cd /tmp
+          /tmp/venv/bin/sensehive --port 5056 --broker 127.0.0.1 --data-dir /tmp/qs-data > /tmp/qs.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:5056/api/health | grep -q '"mqtt_connected":true' && break; sleep 1; done
+          cd "$GITHUB_WORKSPACE"
+          python -W ignore tools/live_e2e.py --url http://127.0.0.1:5056 --password admin123 --broker 127.0.0.1             --demo /tmp/venv/bin/sensehive-demo --out live-report --min-checks 25
+
+      - name: Screenshots of failures
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
+        with:
+          name: live-report-pip
+          path: live-report/*.png
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
         with:
           name: dist
@@ -114,6 +135,26 @@ jobs:
           for i in $(seq 1 40); do [ "$(docker inspect -f '{{.State.Health.Status}}' sh)" = healthy ] && break; sleep 2; done
           docker inspect -f '{{.State.Health.Status}}' sh | grep -q healthy
           docker logs sh
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+
+      - name: Quick start end to end (docker run, an emulated fleet, a browser)
+        run: |
+          docker run -d --name qsmq -p 1883:1883 eclipse-mosquitto:2.0.20 mosquitto -c /mosquitto-no-auth.conf
+          docker run -d --name qs -p 5057:5000 --add-host host.docker.internal:host-gateway             -e DEFAULT_BROKER_HOST=host.docker.internal -e SENSEHIVE_FORCE_BROKER=true sensehive:ci
+          pip install paho-mqtt playwright==1.55.0
+          python -m playwright install --with-deps chromium
+          for i in $(seq 1 40); do curl -sf http://localhost:5057/api/health | grep -q '"mqtt_connected":true' && break; sleep 1; done
+          python -W ignore tools/live_e2e.py --url http://127.0.0.1:5057 --password admin123 --broker 127.0.0.1             --demo "python version-1.0/demo_fleet.py" --out live-report --min-checks 25
+
+      - name: Screenshots of failures
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
+        with:
+          name: live-report-docker
+          path: live-report/*.png
 
   lint:
     name: Lint and static checks
