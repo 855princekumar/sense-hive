@@ -19,3 +19,9 @@ updates:
       # purpose, with the browser UI test, not through an automatic bump.
       - dependency-name: tailwindcss
         update-types: ["version-update:semver-major"]
+      # React 19 ships no UMD files, which the build copies into static/vendor;
+      # moving to it means bundling React with esbuild (a planned change).
+      - dependency-name: react
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react-dom
+        update-types: ["version-update:semver-major"]
