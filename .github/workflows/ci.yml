@@ -89,7 +89,7 @@ jobs:
           /tmp/venv/bin/sensehive --port 5056 --broker 127.0.0.1 --data-dir /tmp/qs-data > /tmp/qs.log 2>&1 &
           for i in $(seq 1 30); do curl -sf http://localhost:5056/api/health | grep -q '"mqtt_connected":true' && break; sleep 1; done
           cd "$GITHUB_WORKSPACE"
-          python -W ignore tools/live_e2e.py --url http://127.0.0.1:5056 --password admin123 --broker 127.0.0.1             --demo /tmp/venv/bin/sensehive-demo --out live-report --min-checks 25
+          python -W ignore tools/live_e2e.py --url http://127.0.0.1:5056 --password admin123 --broker 127.0.0.1             --demo /tmp/venv/bin/sensehive-demo --out live-report --min-checks 25 --shots quickstart-shots
 
       - name: Screenshots of failures
         if: failure()
@@ -97,6 +97,12 @@ jobs:
         with:
           name: live-report-pip
           path: live-report/*.png
+
+      - name: The quick start pictures (assets/quickstart-*.png in the docs)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
+        with:
+          name: quickstart-screenshots
+          path: quickstart-shots/*.png
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
         with:
@@ -147,7 +153,7 @@ jobs:
           pip install paho-mqtt playwright==1.55.0
           python -m playwright install --with-deps chromium
           for i in $(seq 1 40); do curl -sf http://localhost:5057/api/health | grep -q '"mqtt_connected":true' && break; sleep 1; done
-          python -W ignore tools/live_e2e.py --url http://127.0.0.1:5057 --password admin123 --broker 127.0.0.1             --demo "python version-1.0/demo_fleet.py" --out live-report --min-checks 25
+          python -W ignore tools/live_e2e.py --url http://127.0.0.1:5057 --password admin123 --broker host.docker.internal             --demo "docker exec qs python demo_fleet.py" --register-url http://127.0.0.1:5000 --out live-report --min-checks 25
 
       - name: Screenshots of failures
         if: failure()
@@ -239,3 +245,24 @@ jobs:
         with:
           name: ui-report
           path: ui-report/*.png
+
+  screenshots:
+    name: Screenshots for the docs (a real SenseHive in a browser)
+    runs-on: ubuntu-24.04
+    services:
+      mosquitto:
+        image: eclipse-mosquitto:1.6        # accepts connections without a config (as the tests job)
+        ports: ["1883:1883"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - run: pip install -r version-1.0/requirements.txt playwright==1.55.0 pillow
+      - run: python -m playwright install --with-deps chromium
+      - name: Every screenshot the docs use (assets/*.png)
+        run: python -W ignore tools/screenshots.py --out screenshots --broker 127.0.0.1:1883
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
+        with:
+          name: screenshots
+          path: screenshots/*.png

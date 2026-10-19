@@ -32,7 +32,7 @@ under **Settings**.
 | Tag | Description |
 | --- | ----------- |
 | `latest` | Latest release, multi-arch (amd64 + arm64) |
-| `1.8.1`, `1.8` | SenseHive 1.8.1, multi-arch |
+| `1.8.2`, `1.8` | SenseHive 1.8.2, multi-arch |
 | `1.7.0`, `1.7` | SenseHive 1.7.0 |
 | `1.6.1`, `1.6` | SenseHive 1.6.1 |
 | `1.6.0` | SenseHive 1.6.0 |
@@ -63,6 +63,11 @@ Apple Silicon). Docker picks the right architecture automatically.
 | Security | Login-protected UI and API, no CDN and a strict Content Security Policy, SQL-safe topic names, salted slow password hashes, lockout after repeated failed sign-ins, CSRF protection, HttpOnly cookies, persistent random session secret, no data baked into the image |
 | Operations | `/api/health` and `/api/status` endpoints, Docker HEALTHCHECK, timezone-aware timestamps |
 | Heartbeats (1.2) | Optional receiver for the [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service): encrypted, authenticated heartbeats and LWT over a public broker, `/heartbeats` page, read-only API. Off unless `HEARTBEAT_MASTER_KEY` is set |
+
+## What's new in 1.8.2
+
+- The emulated fleet is in the image: `docker exec sensehive python demo_fleet.py --broker HOST --register http://127.0.0.1:5000` fills the dashboard with devices and their last wills.
+- A step-by-step quick start with real output and screenshots: https://github.com/855princekumar/sense-hive/blob/main/docs/QUICKSTART.md
 
 ## What's new in 1.8.1
 

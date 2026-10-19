@@ -2,7 +2,7 @@
   <img src="assets/banner.svg" alt="SenseHive Banner"/>
 </p>
 
-![Release](https://img.shields.io/badge/release-v1.8.1-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![PowerPulse](https://img.shields.io/badge/ESP32%20device-PowerPulse-0ea5e9.svg?logo=espressif&logoColor=white)](https://github.com/855princekumar/powerpulse) [![Devices](https://github.com/855princekumar/sense-hive/actions/workflows/devices.yml/badge.svg)](docs/VALIDATE-WITHOUT-HARDWARE.md) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-28%20MB%20idle%20%7C%2035%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
+![Release](https://img.shields.io/badge/release-v1.8.2-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![PowerPulse](https://img.shields.io/badge/ESP32%20device-PowerPulse-0ea5e9.svg?logo=espressif&logoColor=white)](https://github.com/855princekumar/powerpulse) [![Devices](https://github.com/855princekumar/sense-hive/actions/workflows/devices.yml/badge.svg)](docs/VALIDATE-WITHOUT-HARDWARE.md) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-28%20MB%20idle%20%7C%2035%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
 
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
@@ -116,7 +116,18 @@ numbers, and how to run the same checks yourself before you deploy hardware:
 
 ## Quick Start (30 seconds)
 
-Get SenseHive running and visualize MQTT data instantly.
+Get SenseHive running and visualize MQTT data instantly. Three ways, each tested end to end
+in CI with a real broker and a browser; the step-by-step guide with every command, its real
+output and screenshots is **[docs/QUICKSTART.md](docs/QUICKSTART.md)**.
+
+| Docker | pip | Home Assistant |
+| --- | --- | --- |
+| `docker run -d -p 5000:5000 -v sensehive-data:/app/data devprincekumar/sense-hive:1.8` | `pip install sensehive-iot && sensehive --broker localhost` | [Add the repository](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2F855princekumar%2Fsensehive-ha-addon), install, Start, Show in sidebar |
+
+No devices yet? `sensehive-demo --broker localhost --register http://localhost:5000` (with pip;
+`docker exec sensehive python demo_fleet.py ...` with Docker) starts an emulated fleet and adds it:
+
+<p align="center"><img src="assets/quickstart-laptop.png" width="80%" alt="The dashboard filled by sensehive-demo after pip install sensehive-iot" /></p>
 
 ### 1. Run the Container
 
@@ -210,8 +221,9 @@ You can also use the included test script for automated data simulation if neede
 ---
 ## Dashboard Preview
 
-Screenshots are taken from a seeded test install by `tools/screenshots.py`
-(made-up topics, no real data), so they always show the current release.
+Screenshots are taken from a real SenseHive in a browser by `tools/screenshots.py`
+(an example site, made-up data), so they always show the current release; CI takes
+them on every change.
 
 <p align="center">
   <img src="assets/dashboard.png" width="90%" alt="Dashboard, light theme" />
@@ -225,6 +237,10 @@ Screenshots are taken from a seeded test install by `tools/screenshots.py`
   <img src="assets/settings.png" width="45%" alt="Settings" />
 </p>
 <p align="center">
+  <img src="assets/add-node.png" width="45%" alt="Add Node: topic, node id, tag, last will" />
+  <img src="assets/dashboard-grouped.png" width="45%" alt="Grouped by node" />
+</p>
+<p align="center">
   <img src="assets/secure-topics.png" width="90%" alt="Secure topics, found by themselves" />
 </p>
 <p align="center">
@@ -233,10 +249,8 @@ Screenshots are taken from a seeded test install by `tools/screenshots.py`
 </p>
 <p align="center">
   <img src="assets/heartbeats.png" width="60%" alt="Heartbeats view" />
-  <img src="assets/phone.png" width="22%" alt="Dashboard on a phone" />
-</p>
-<p align="center">
-  <img src="assets/test-script-output.png" width="60%" alt="Test publisher output" />
+  <img src="assets/phone.png" width="18%" alt="Dashboard on a phone" />
+  <img src="assets/phone-heartbeats.png" width="18%" alt="Heartbeats on a phone" />
 </p>
 
 ---
@@ -606,7 +620,7 @@ docker pull devprincekumar/sense-hive:latest
 ```
 
 * One multi-arch image for AMD64 / x86 and ARM64 (Raspberry Pi 4/5); Docker picks the right one
-* Pin a release with `devprincekumar/sense-hive:1.8.1`; `edge` tracks the `main` branch
+* Pin a release with `devprincekumar/sense-hive:1.8.2`; `edge` tracks the `main` branch
 * `arm-pi-5` remains available and points to the same multi-arch release
 
 ---
