@@ -7,7 +7,7 @@ browser UI test fills its own, but with an example site (greenhouse, cold room,
 pump house...) instead of the test's edge cases. Made-up data, no real devices.
 
     python tools/screenshots.py                          # writes assets/*.png
-    python tools/screenshots.py --broker 127.0.0.1:1883  # "Connected" in the header
+    python tools/screenshots.py --broker 127.0.0.1:1883  # "Connected" in the header and on Heartbeats
 """
 import argparse
 import os
@@ -70,7 +70,8 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     if a.broker:
         host, _, port = a.broker.partition(':')
-        os.environ.update(DEFAULT_BROKER_HOST=host, DEFAULT_BROKER_PORT=port or '1883', SENSEHIVE_FORCE_BROKER='true')
+        os.environ.update(DEFAULT_BROKER_HOST=host, DEFAULT_BROKER_PORT=port or '1883', SENSEHIVE_FORCE_BROKER='true',
+                          HEARTBEAT_BROKER=host, HEARTBEAT_PORT=port or '1883', HEARTBEAT_TLS='false')
     random.seed(11)
     base = ui_test.serve(5098)
     import time
@@ -83,6 +84,7 @@ def main():
         conn.commit()
     if a.broker:
         sensehive.init_mqtt()                        # as `sensehive` does at start
+        sensehive.heartbeat_receiver.start(sensehive.new_mqtt_client)   # "Connected to the heartbeat broker"
     from playwright.sync_api import sync_playwright
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
@@ -137,7 +139,8 @@ def main():
         ui_test.settle(page)
         shot(page, 'heartbeat-history.png')
         page.click('.sh-modal [data-range="7d"]')
-        page.wait_for_selector('.sh-modal svg rect', timeout=15000)
+        # a bar with height: the first one may be a day with no downtime (height 0)
+        page.locator('.sh-modal svg rect[height]:not([height="0"])').first.wait_for(timeout=15000)
         ui_test.settle(page)
         shot(page, 'heartbeat-uptime.png')
         page.keyboard.press('Escape')

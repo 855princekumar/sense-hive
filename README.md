@@ -8,6 +8,11 @@
 
 **Run → Add Topic → Publish → See Data in under 30 seconds.**
 
+**[Try the live demo](https://sense-hive-latest.onrender.com)** (sign in as `admin` / `admin123`): the current SenseHive with an
+emulated fleet, four real [heartbeat agents](https://github.com/855princekumar/mqtt-heartbeat-service)
+and a [PowerPulse](https://github.com/855princekumar/powerpulse) node, on its own private broker. It
+may take a minute to wake; it starts fresh each time. [How it is built](demo/README.md).
+
 <p align="center">
   <a href="https://sense-hive.855princekumar.workers.dev/"><img src="assets/dashboard.png" width="88%" alt="The SenseHive dashboard: topics with live values and last-will status" /></a>
 </p>
@@ -20,7 +25,7 @@ pip package, natively, or as a **Home Assistant add-on**.
 
 **Contents:** [Quick start](#quick-start) ([pip](#1-pip-package) · [Home Assistant](#2-home-assistant-add-on) ·
 [Docker](#3-docker) · [native](#4-native-install)) · [First topic](#your-first-topic) ·
-[Screenshots](#screenshots) · [Performance](#performance) · [Everything else](#index)
+[Screenshots](#screenshots) · [Performance](#performance) · [Live demo](https://sense-hive-latest.onrender.com) · [Everything else](#index)
 
 ---
 

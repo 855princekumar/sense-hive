@@ -132,14 +132,21 @@ Every pull request and push to `main` runs (all required for merging):
 
 | Job | Checks |
 | --- | ------ |
-| Tests (Python 3.9, 3.11, 3.12, 3.13; paho-mqtt 1.x) | pytest against a real Mosquitto broker |
-| Lint and static checks | ruff, no em dashes in text |
-| Security scans | Bandit, pip-audit |
-| Front-end build | `npm ci` and `npm run check` |
-| Browser UI | `tools/ui_test.py --min-checks 140` |
-| pip package | wheel build, install in a clean venv, CLI smoke test |
-| Docker image | build, no database in the image, health check, CSP header and static files served |
+| Tests (several Python versions; paho-mqtt 1.x) | pytest against a real Mosquitto broker |
+| Lint and static checks | ruff, no em dashes in text, no private names (a secret list) |
+| Security scans | Bandit (also `demo/`), pip-audit |
+| Front-end build | `npm ci` and `npm run check`, nothing loaded from another host |
+| Browser UI | `tools/ui_test.py --min-checks 500`: every page and dialog, phone to desktop, zoom 67 to 200 % |
+| pip package | wheel build, install in a clean venv, CLI smoke test, then the quick start end to end (`tools/live_e2e.py`, a broker, `sensehive-demo`, a browser) |
+| Docker image | build, no database in the image, health check, CSP header and static files, then the same quick start with `docker run` |
+| Screenshots | `tools/screenshots.py --broker`: every picture the docs use, from a real SenseHive (kept as an artifact) |
+| Public demo image | `demo/Dockerfile` in 512 MB, checked as a visitor (`tools/demo_e2e.py`, 30 checks) |
 | CodeQL | Python and JavaScript |
 
-Tags `vX.Y.Z` publish the multi-arch image, the Docker Hub description, the
-PyPI package and a GitHub release (`cd.yml`).
+The Devices workflow (`devices.yml`) runs the PowerPulse firmware's messages and
+the heartbeat agent on a systemd node against this SenseHive.
+
+Every push to `main` publishes `devprincekumar/sense-hive:edge` and the public
+demo image `:demo` (and calls the demo host's deploy hook when `DEMO_DEPLOY_HOOK`
+is set). Tags `vX.Y.Z` publish the multi-arch image, the Docker Hub description,
+the PyPI package and a GitHub release (`cd.yml`).

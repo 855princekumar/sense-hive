@@ -10,6 +10,7 @@
 | [Performance and resource use](PERFORMANCE.md) | Measured CPU, memory, API times and storage, how to size, and how to repeat the test |
 | [Security](SECURITY.md) | Sign-in hardening, sessions and cookies, the browser policy (CSP), running behind a proxy, reporting a problem |
 | [Development and testing](DEVELOPMENT.md) | Project layout, the front-end build, the theme, linting, the test suites and CI |
+| [The public demo](../demo/README.md) | The [live demo](https://sense-hive-latest.onrender.com): what runs in it, how visitors are kept from changing it, how to run and test it |
 | [Architecture decisions](adr/README.md) | Why SenseHive is built the way it is (ADRs) |
 | [Changelog](../CHANGELOG.md) | What changed in each release |
 
