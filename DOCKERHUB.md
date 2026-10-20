@@ -32,6 +32,8 @@ under **Settings**.
 | Tag | Description |
 | --- | ----------- |
 | `latest` | Latest release, multi-arch (amd64 + arm64) |
+| `demo` | The public demo in one container: SenseHive from `main`, a private broker, heartbeat agents, a PowerPulse node and an emulated fleet (amd64). `docker run -p 10000:10000 -e PORT=10000 devprincekumar/sense-hive:demo`, or try it live: https://sense-hive-latest.onrender.com |
+| `edge` | The `main` branch, multi-arch, not a release |
 | `1.8.2`, `1.8` | SenseHive 1.8.2, multi-arch |
 | `1.7.0`, `1.7` | SenseHive 1.7.0 |
 | `1.6.1`, `1.6` | SenseHive 1.6.1 |
@@ -63,6 +65,10 @@ Apple Silicon). Docker picks the right architecture automatically.
 | Security | Login-protected UI and API, no CDN and a strict Content Security Policy, SQL-safe topic names, salted slow password hashes, lockout after repeated failed sign-ins, CSRF protection, HttpOnly cookies, persistent random session secret, no data baked into the image |
 | Operations | `/api/health` and `/api/status` endpoints, Docker HEALTHCHECK, timezone-aware timestamps |
 | Heartbeats (1.2) | Optional receiver for the [MQTT heartbeat agent](https://github.com/855princekumar/mqtt-heartbeat-service): encrypted, authenticated heartbeats and LWT over a public broker, `/heartbeats` page, read-only API. Off unless `HEARTBEAT_MASTER_KEY` is set |
+
+## Live demo
+
+https://sense-hive-latest.onrender.com (sign in as `admin` / `admin123`): an emulated fleet, four real heartbeat agents and a PowerPulse node on a private broker. It is the `demo` tag above.
 
 ## What's new in 1.8.2
 
