@@ -207,7 +207,7 @@ jobs:
           python-version: "3.12"
       - run: pip install bandit==1.8.6 pip-audit==2.9.0
       - name: Bandit (no unreviewed medium or high finding)
-        run: bandit -r version-1.0 tools Test-sensehive -ll -q
+        run: bandit -r version-1.0 tools Test-sensehive demo -ll -q
       - name: pip-audit (no dependency with a known vulnerability)
         run: pip-audit -r version-1.0/requirements.txt --progress-spinner off
 
@@ -266,3 +266,37 @@ jobs:
         with:
           name: screenshots
           path: screenshots/*.png
+
+  demo:
+    name: Public demo image (a private broker, heartbeat agents, PowerPulse, a browser)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4
+      - name: Build the demo image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc  # v7
+        with:
+          context: .
+          file: demo/Dockerfile
+          load: true
+          tags: sensehive-demo:ci
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: The demo as a visitor sees it (512 MB, as on a small free host)
+        run: |
+          docker run -d --name demo -e PORT=10000 -p 10000:10000 --memory 512m sensehive-demo:ci
+          pip install playwright==1.55.0
+          python -m playwright install --with-deps chromium
+          for i in $(seq 1 60); do docker logs demo 2>&1 | grep -q "demo: ready" && break; sleep 2; done
+          python -W ignore tools/demo_e2e.py --url http://127.0.0.1:10000 --out demo-report
+          ! docker logs demo 2>&1 | grep -q Traceback
+          docker stats --no-stream demo
+      - name: Container log and screenshots
+        if: always()
+        run: docker logs demo 2>&1 | grep -v "Logged data" | tail -60
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
+        if: always()
+        with:
+          name: demo-report
+          path: demo-report/*.png
