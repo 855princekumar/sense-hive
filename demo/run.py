@@ -29,6 +29,10 @@ import demo_fleet                          # noqa: E402  the same fleet as sense
 
 RUN = '/run/demo'
 AGENT = '/demo/agent'
+LOGINS = '/run/demo/broker-logins'
+BROKER_CONF = '/run/demo/mosquitto.conf'
+BROKER_SETTINGS = ('listener 1883 127.0.0.1\nallow_anonymous false\npassword_file /run/demo/broker-logins\n'
+                   'persistence false\nlog_dest stdout\nlog_type error\nlog_type warning\n')
 PORT = os.environ.get('PORT', '5000')
 URL = f'http://127.0.0.1:{PORT}/'
 NODES = ['edge-gateway-01', 'pi-node-01', 'pi-node-02', 'mini-pc-01']
@@ -61,15 +65,13 @@ def chown_tree(path):
 def broker():
     os.makedirs(RUN, exist_ok=True)
     os.chown(RUN, demo.pw_uid, demo.pw_gid)
-    passwd = os.path.join(RUN, 'passwd')
-    subprocess.run(['mosquitto_passwd', '-b', '-c', passwd, mqtt_user, mqtt_password], check=True)  # nosec B603 B607
-    os.chmod(passwd, 0o600)
-    os.chown(passwd, demo.pw_uid, demo.pw_gid)
-    conf = os.path.join(RUN, 'mosquitto.conf')
-    with open(conf, 'w') as f:
-        f.write(f'listener 1883 127.0.0.1\nallow_anonymous false\npassword_file {passwd}\n'
-                'persistence false\nlog_dest stdout\nlog_type error\nlog_type warning\n')
-    start('broker', ['mosquitto', '-c', conf])
+    # mosquitto_passwd stores the login hashed; the config only names that file
+    subprocess.run(['mosquitto_passwd', '-b', '-c', LOGINS, mqtt_user, mqtt_password], check=True)  # nosec B603 B607
+    os.chmod(LOGINS, 0o600)
+    os.chown(LOGINS, demo.pw_uid, demo.pw_gid)
+    with open(BROKER_CONF, 'w') as f:
+        f.write(BROKER_SETTINGS)
+    start('broker', ['mosquitto', '-c', BROKER_CONF])
 
 
 def sensehive():
