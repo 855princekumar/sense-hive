@@ -68,6 +68,8 @@ Apple Silicon). Docker picks the right architecture automatically.
 
 ## Live demo
 
+Watch the 3-minute demo: https://www.youtube.com/watch?v=sgDQT8vRx-k
+
 https://sense-hive-latest.onrender.com (sign in as `admin` / `admin123`): an emulated fleet, four real heartbeat agents and a PowerPulse node on a private broker. It is the `demo` tag above.
 
 ## What's new in 1.8.2

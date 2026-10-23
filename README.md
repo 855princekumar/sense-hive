@@ -4,6 +4,12 @@
 
 ![Release](https://img.shields.io/badge/release-v1.8.2-blue.svg) [![CI](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml/badge.svg)](https://github.com/855princekumar/sense-hive/actions/workflows/ci.yml) ![Status](https://img.shields.io/badge/status-stable-success.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Docker](https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED.svg?logo=docker&logoColor=white) ![Lightweight](https://img.shields.io/badge/lightweight-yes-brightgreen.svg) ![Self Hosted](https://img.shields.io/badge/self--hosted-true-orange.svg) ![IoT](https://img.shields.io/badge/iot-MQTT%20Dashboard-blueviolet.svg) [![Home Assistant Add-on](https://img.shields.io/badge/home--assistant-add--on-41BDF5.svg?logo=home-assistant&logoColor=white)](https://github.com/855princekumar/sensehive-ha-addon) ![PyPI](https://img.shields.io/badge/pip-sensehive--iot-3775A9.svg?logo=pypi&logoColor=white) [![Heartbeat agent](https://img.shields.io/badge/heartbeat%20agent-mqtt--heartbeat--service-d97706.svg)](https://github.com/855princekumar/mqtt-heartbeat-service) [![PowerPulse](https://img.shields.io/badge/ESP32%20device-PowerPulse-0ea5e9.svg?logo=espressif&logoColor=white)](https://github.com/855princekumar/powerpulse) [![Devices](https://github.com/855princekumar/sense-hive/actions/workflows/devices.yml/badge.svg)](docs/VALIDATE-WITHOUT-HARDWARE.md) [![EdgeShell](https://img.shields.io/badge/works%20with-EdgeShell-1a56db.svg)](https://github.com/855princekumar/edgeshell) [![Footprint](https://img.shields.io/badge/footprint-35%20MB%20idle%20%7C%2038%20MB%20at%20500%20nodes-brightgreen.svg)](docs/PERFORMANCE.md)
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=sgDQT8vRx-k" title="Watch the SenseHive demo on YouTube"><img src="docs/media/demo-video.jpg" width="88%" alt="Watch the 3-minute SenseHive demo on YouTube" /></a>
+  <br/>
+  <sub><b><a href="https://www.youtube.com/watch?v=sgDQT8vRx-k">Watch the 3-minute demo on YouTube</a></b>: live topics, last-will status, edge heartbeats and an encrypted ESP32, in under 3 minutes</sub>
+</p>
+
 > Debug, log, and visualize your MQTT data instantly, like uptime-kuma, but built for MQTT and IoT data.
 
 **Run → Add Topic → Publish → See Data in under 30 seconds.**
