@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = [ROOT / 'README.md', ROOT / 'DOCKERHUB.md', *sorted((ROOT / 'docs').glob('*.md'))]
-IMG = re.compile(r'(?:src="|\]\()([^")\s]+\.(?:png|svg|jpg|gif))')
+IMG = re.compile(r'(?:src="|\]\()([^")\s]+\.(?:png|svg|jpg|gif|webp))')
 
 
 def images():
